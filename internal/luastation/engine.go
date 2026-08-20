@@ -18,7 +18,9 @@ import (
 
 	lua "github.com/yuin/gopher-lua"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
 
 	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
 	"github.com/tmfksoft/goradio/internal/config"
@@ -30,6 +32,13 @@ type Engine struct {
 	cfg        *config.StationConfig
 	scriptPath string
 	scriptArgs []string
+
+	// ctx is Run's context, cancelled on SIGINT/SIGTERM. Every RPC the Lua
+	// API issues (register/queue/status) derives from this rather than
+	// context.Background(), so a script blocked retrying a call — e.g.
+	// radio.register() while the audio server is unreachable — still
+	// responds to the process being asked to shut down.
+	ctx context.Context
 
 	L      *lua.LState
 	conn   *grpc.ClientConn
@@ -72,6 +81,7 @@ func NewEngine(log *slog.Logger, cfg *config.StationConfig, scriptPath string, s
 // typically calls radio.register/radio.every/radio.on_* at top level),
 // then services timers and pushed events until ctx is cancelled.
 func (e *Engine) Run(ctx context.Context) error {
+	e.ctx = ctx
 	defer e.L.Close()
 
 	if err := e.connect(); err != nil {
@@ -144,6 +154,14 @@ func (e *Engine) getRegisteredSlug() string {
 // registerWithRetry calls RegisterStation, retrying with exponential
 // backoff (capped) until it succeeds or ctx is cancelled. Used both by the
 // Lua-facing radio.register() and by the event-stream reconnect loop.
+//
+// Errors are only retried when they're plausibly transient (e.g. the audio
+// server isn't reachable/up yet — codes.Unavailable). Errors that retrying
+// can never fix on its own — a malformed/expired/wrong-audience JWT
+// (Unauthenticated), a token not authorized for this slug
+// (PermissionDenied), or a bad request (InvalidArgument) — return
+// immediately instead of retrying forever, since nothing changes those
+// outcomes short of the operator editing config and restarting.
 func (e *Engine) registerWithRetry(ctx context.Context, slug, name, description string) (*audioserverv1.RegisterStationResponse, error) {
 	backoff := time.Second
 	const maxBackoff = 30 * time.Second
@@ -159,6 +177,9 @@ func (e *Engine) registerWithRetry(ctx context.Context, slug, name, description 
 		if err == nil {
 			return resp, nil
 		}
+		if !isRetryable(err) {
+			return nil, fmt.Errorf("register station %q: %w", slug, err)
+		}
 
 		e.log.Warn("register failed, retrying", "slug", slug, "error", err, "backoff", backoff)
 		select {
@@ -170,6 +191,18 @@ func (e *Engine) registerWithRetry(ctx context.Context, slug, name, description 
 		if backoff > maxBackoff {
 			backoff = maxBackoff
 		}
+	}
+}
+
+// isRetryable reports whether err is a transient failure worth retrying
+// (e.g. the audio server not being reachable yet) rather than a permanent
+// one (bad token, bad request) that will keep failing identically forever.
+func isRetryable(err error) bool {
+	switch status.Code(err) {
+	case codes.Unauthenticated, codes.PermissionDenied, codes.InvalidArgument:
+		return false
+	default:
+		return true
 	}
 }
 

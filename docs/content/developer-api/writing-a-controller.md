@@ -96,18 +96,31 @@ wiped by a `radio serve` restart. Your controller should be able to run
 indefinitely across audio-server restarts and network blips without manual
 intervention:
 
-- If `RegisterStation` fails (audio server not reachable / not up yet),
-  retry with backoff. This call is safe to retry — it's idempotent by slug.
+- If `RegisterStation` fails because the server is unreachable
+  (`codes.Unavailable`), retry with backoff. This call is safe to retry —
+  it's idempotent by slug.
 - If the `SubscribeEvents` stream errors or closes unexpectedly, assume the
   audio server may have restarted (so your registration may be gone) and:
   1. Call `RegisterStation` again with the same slug/name/description.
   2. Re-open `SubscribeEvents`.
   3. Repeat with backoff if either fails.
 
+!!! warning "Don't retry permanent failures forever"
+    Distinguish transient errors from permanent ones before you retry.
+    `codes.Unauthenticated` (bad/expired/malformed JWT) and
+    `codes.PermissionDenied` (token doesn't cover this slug) will **never**
+    succeed no matter how many times you retry — retrying them anyway just
+    produces an unkillable-looking process that spins forever on a config
+    mistake, with no clear error message telling the operator what to fix.
+    Fail fast and surface the error instead. Also make sure whatever
+    context governs the retry loop is the same one your process cancels on
+    `SIGINT`/`SIGTERM` — a retry loop built on `context.Background()`
+    won't respond to Ctrl+C at all, transient error or not.
+
 This is exactly what `internal/luastation` (this repo's bundled Lua engine)
 does — see [`internal/luastation/engine.go`](https://github.com/tmfksoft/goradio/blob/main/internal/luastation/engine.go)
-if you want a concrete reference implementation of this reconnect loop to
-port to your language.
+(specifically `registerWithRetry` and `isRetryable`) if you want a concrete
+reference implementation of this reconnect loop to port to your language.
 
 ## Things your controller does *not* need to worry about
 

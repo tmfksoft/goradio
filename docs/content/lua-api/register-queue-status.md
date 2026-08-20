@@ -23,9 +23,14 @@ because the engine calls this for you automatically (with exponential
 backoff) if the connection to the audio server drops or the server itself
 restarts.
 
-If the very first `radio.register` call fails (e.g. the audio server isn't
-up yet), it blocks and retries internally rather than raising a Lua error —
-your script's top-level code will simply wait until it succeeds.
+If the very first `radio.register` call fails for a **transient** reason
+(e.g. the audio server isn't up yet), it blocks and retries internally with
+backoff rather than raising a Lua error — your script's top-level code
+simply waits until it succeeds, and `Ctrl+C`/`SIGTERM` still stops the
+process while it's waiting. If it fails for a **permanent** reason instead
+— a malformed/expired/wrong-audience JWT, or a token not authorized for
+this slug — it raises a Lua error immediately rather than retrying forever,
+since no amount of retrying fixes a bad token.
 
 ## `radio.queue(source, mode)`
 

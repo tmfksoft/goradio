@@ -49,7 +49,7 @@ func (e *Engine) luaRegister(L *lua.LState) int {
 	name := L.OptString(2, slug)
 	description := L.OptString(3, "")
 
-	resp, err := e.registerWithRetry(context.Background(), slug, name, description)
+	resp, err := e.registerWithRetry(e.ctx, slug, name, description)
 	if err != nil {
 		L.RaiseError("radio.register failed: %v", err)
 		return 0
@@ -83,7 +83,7 @@ func (e *Engine) luaQueue(L *lua.LState) int {
 	}
 	mode := parseQueueMode(L.OptString(2, "APPEND"))
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
 	defer cancel()
 
 	resp, err := e.client.QueueTrack(ctx, &audioserverv1.QueueTrackRequest{
@@ -112,7 +112,7 @@ func (e *Engine) luaStatus(L *lua.LState) int {
 		return 0
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
 	defer cancel()
 
 	resp, err := e.client.GetStatus(ctx, &audioserverv1.GetStatusRequest{Slug: slug})
