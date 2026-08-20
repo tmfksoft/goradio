@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package audioserver.v1;
+
+option go_package = "github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1";
+
+// RegisterStationRequest registers (or re-registers) a station by slug.
+// Re-registering an existing slug updates its metadata in place without
+// disrupting the running queue/player, supporting controller reconnects.
+message RegisterStationRequest {
+  string slug = 1;
+  string name = 2;
+  string description = 3;
+}
+
+message RegisterStationResponse {
+  string slug = 1;
+  string stream_url = 2;
+  bool re_registered = 3;
+}

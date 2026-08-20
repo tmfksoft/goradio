@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package audioserver.v1;
+
+option go_package = "github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1";
+
+enum QueueMode {
+  QUEUE_MODE_UNSPECIFIED = 0;
+  QUEUE_MODE_APPEND = 1;
+  QUEUE_MODE_PLAY_NEXT = 2;
+  QUEUE_MODE_PLAY_NOW_INTERRUPT = 3;
+}
+
+// TRANSITION_CROSSFADE is reserved for forward compatibility and is not
+// implemented yet: the server logs a warning and coerces it to a hard cut.
+enum Transition {
+  TRANSITION_HARD_CUT = 0;
+  TRANSITION_CROSSFADE = 1;
+}
+
+enum TrackSourceType {
+  TRACK_SOURCE_TYPE_UNSPECIFIED = 0;
+  TRACK_SOURCE_TYPE_LOCAL_FILE = 1;
+  TRACK_SOURCE_TYPE_HTTP_URL = 2;
+}
+
+message TrackSource {
+  TrackSourceType type = 1;
+  // Relative path under the audio server's configured audio root (LOCAL_FILE)
+  // or an absolute http(s) URL (HTTP_URL).
+  string location = 2;
+  string display_title = 3;
+  string display_artist = 4;
+}
+
+message QueueTrackRequest {
+  string slug = 1;
+  TrackSource source = 2;
+  QueueMode mode = 3;
+  Transition transition = 4;
+}
+
+message QueueTrackResponse {
+  string queue_id = 1;
+  int32 queue_position = 2;
+  string status = 3;
+}

@@ -1,0 +1,34 @@
+# Default filename: server.yaml. Override with `radio serve --config <path>`.
+
+grpc:
+  listen_addr: "0.0.0.0:9090"
+
+http:
+  listen_addr: "0.0.0.0:8080"
+  public_base_url: "http://localhost:8080"
+
+auth:
+  # HS256 shared secret. Can also be supplied via the GORADIO_JWT_SECRET
+  # environment variable, which takes precedence over this value.
+  jwt_secret: "CHANGE_ME"
+
+audio:
+  audio_root: "./data/audio"
+
+transcode:
+  ffmpeg_path: "ffmpeg"
+  cache_dir: "./data/transcode-cache"
+  bitrate_kbps: 128
+  sample_rate: 44100
+  channels: 2
+  worker_count: 4
+  timeout_seconds: 60
+
+fetch:
+  max_download_bytes: 52428800 # 50 MiB
+
+silence:
+  clip_duration_seconds: 15
+
+logging:
+  level: "info" # debug|info|warn|error

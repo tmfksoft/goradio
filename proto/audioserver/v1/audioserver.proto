@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package audioserver.v1;
+
+import "audioserver/v1/station.proto";
+import "audioserver/v1/queue.proto";
+import "audioserver/v1/status.proto";
+import "audioserver/v1/events.proto";
+
+option go_package = "github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1";
+
+service AudioServerService {
+  rpc RegisterStation(RegisterStationRequest) returns (RegisterStationResponse);
+  rpc QueueTrack(QueueTrackRequest) returns (QueueTrackResponse);
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc SubscribeEvents(SubscribeEventsRequest) returns (stream StationEvent);
+}

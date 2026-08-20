@@ -1,0 +1,17 @@
+version: v2
+modules:
+  - path: .
+    name: proto.prod.wtf/tmfksoft/goradio
+lint:
+  use:
+    - STANDARD
+  except:
+    # Transition's zero value is intentionally TRANSITION_HARD_CUT (not an
+    # _UNSPECIFIED sentinel): an omitted field must mean "hard cut" on the wire.
+    - ENUM_ZERO_VALUE_SUFFIX
+    # StationEvent is deliberately reused as the SubscribeEvents stream item
+    # type rather than a bespoke SubscribeEventsResponse wrapper.
+    - RPC_RESPONSE_STANDARD_NAME
+breaking:
+  use:
+    - FILE

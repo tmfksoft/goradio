@@ -1,0 +1,114 @@
+// Package playback is the audio server's per-station playback engine: the
+// queue, player, listener fan-out, and event bus. It is deliberately named
+// "playback" rather than "station" to avoid clashing with the unrelated
+// Lua "station controller" concept in internal/luastation.
+package playback
+
+import (
+	"sync"
+
+	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
+)
+
+// QueuedItem is one entry in a station's playback queue. It is created
+// immediately on QueueTrack and its Ready channel closes once the
+// transcode/prefetch job (internal/transcode) has resolved a locally
+// playable file, so downloads/transcodes finish well ahead of playback.
+type QueuedItem struct {
+	ID         string
+	Source     *audioserverv1.TrackSource
+	Mode       audioserverv1.QueueMode
+	Transition audioserverv1.Transition
+
+	ready     chan struct{}
+	localPath string
+	err       error
+}
+
+// NewQueuedItem creates a not-yet-ready queue item. Call MarkReady once
+// prefetch/transcode completes.
+func NewQueuedItem(id string, source *audioserverv1.TrackSource, mode audioserverv1.QueueMode, transition audioserverv1.Transition) *QueuedItem {
+	return &QueuedItem{
+		ID:         id,
+		Source:     source,
+		Mode:       mode,
+		Transition: transition,
+		ready:      make(chan struct{}),
+	}
+}
+
+// MarkReady completes prefetch for this item: either localPath is set to
+// the cached, transcoded audio file to play, or err explains why not.
+func (q *QueuedItem) MarkReady(localPath string, err error) {
+	q.localPath = localPath
+	q.err = err
+	close(q.ready)
+}
+
+// Ready is closed once prefetch has completed (successfully or not).
+func (q *QueuedItem) Ready() <-chan struct{} { return q.ready }
+
+// LocalPath returns the cached, transcoded file to play. Only valid after
+// Ready is closed and Err is nil.
+func (q *QueuedItem) LocalPath() string { return q.localPath }
+
+// Err explains why prefetch failed, if it did. Only valid after Ready is
+// closed.
+func (q *QueuedItem) Err() error { return q.err }
+
+// Queue is a station's thread-safe FIFO of QueuedItems.
+type Queue struct {
+	mu    sync.Mutex
+	items []*QueuedItem
+}
+
+// NewQueue creates an empty queue.
+func NewQueue() *Queue {
+	return &Queue{}
+}
+
+// Append adds item to the end of the queue (QUEUE_MODE_APPEND).
+func (q *Queue) Append(item *QueuedItem) int {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.items = append(q.items, item)
+	return len(q.items) - 1
+}
+
+// PushFront adds item to the front of the queue (QUEUE_MODE_PLAY_NEXT and
+// QUEUE_MODE_PLAY_NOW_INTERRUPT; the latter additionally requires signaling
+// the player to abandon its in-flight clip, which callers do separately via
+// Station.Interrupt).
+func (q *Queue) PushFront(item *QueuedItem) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.items = append([]*QueuedItem{item}, q.items...)
+}
+
+// PopFront removes and returns the item at the front of the queue, if any.
+func (q *Queue) PopFront() (*QueuedItem, bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	if len(q.items) == 0 {
+		return nil, false
+	}
+	item := q.items[0]
+	q.items = q.items[1:]
+	return item, true
+}
+
+// Snapshot returns a copy of the current queue contents, for GetStatus.
+func (q *Queue) Snapshot() []*QueuedItem {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	out := make([]*QueuedItem, len(q.items))
+	copy(out, q.items)
+	return out
+}
+
+// Len returns the current queue length.
+func (q *Queue) Len() int {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	return len(q.items)
+}

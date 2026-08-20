@@ -1,0 +1,23 @@
+# Default filename: station.yaml. Override with `radio station --config <path>`.
+# Pairs with a Lua script, default filename station.lua, override with
+# `radio station --script <path>`. Any trailing CLI args after these flags
+# are passed through to the script unparsed, exposed as `radio.args`.
+
+server:
+  grpc_addr: "localhost:9090"
+
+auth:
+  # Signed via `radio tokengen <slug...>`. Can also be supplied via the
+  # GORADIO_JWT environment variable, which takes precedence over this value.
+  jwt: "eyJhbGciOi..."
+
+station:
+  slug: "test-station"
+
+api:
+  enabled: false
+  bind_host: "127.0.0.1:8091"
+  api_key: "CHANGE_ME"
+
+logging:
+  level: "info"

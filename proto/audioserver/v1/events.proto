@@ -1,0 +1,59 @@
+syntax = "proto3";
+
+package audioserver.v1;
+
+import "audioserver/v1/queue.proto";
+
+option go_package = "github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1";
+
+message SubscribeEventsRequest {
+  string slug = 1;
+}
+
+enum EventType {
+  EVENT_TYPE_UNSPECIFIED = 0;
+  EVENT_TYPE_TRACK_STARTED = 1;
+  EVENT_TYPE_TRACK_ENDED = 2;
+  EVENT_TYPE_QUEUE_UPDATED = 3;
+  EVENT_TYPE_LISTENER_COUNT_CHANGED = 4;
+  EVENT_TYPE_ERROR = 5;
+  EVENT_TYPE_SILENCE_STARTED = 6;
+  EVENT_TYPE_SILENCE_ENDED = 7;
+}
+
+message TrackStartedPayload {
+  string queue_id = 1;
+  TrackSource source = 2;
+}
+
+message TrackEndedPayload {
+  string queue_id = 1;
+  // "completed" or "interrupted"
+  string reason = 2;
+}
+
+message QueueUpdatedPayload {
+  int32 queue_length = 1;
+}
+
+message ListenerCountChangedPayload {
+  int64 listener_count = 1;
+}
+
+message ErrorPayload {
+  string message = 1;
+  string code = 2;
+}
+
+message StationEvent {
+  string slug = 1;
+  EventType type = 2;
+  int64 timestamp_unix_ms = 3;
+  oneof payload {
+    TrackStartedPayload track_started = 10;
+    TrackEndedPayload track_ended = 11;
+    QueueUpdatedPayload queue_updated = 12;
+    ListenerCountChangedPayload listener_count_changed = 13;
+    ErrorPayload error = 14;
+  }
+}

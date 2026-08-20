@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package audioserver.v1;
+
+import "audioserver/v1/queue.proto";
+
+option go_package = "github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1";
+
+message GetStatusRequest {
+  string slug = 1;
+}
+
+message QueuedItemStatus {
+  string queue_id = 1;
+  TrackSource source = 2;
+  QueueMode mode = 3;
+}
+
+message GetStatusResponse {
+  string slug = 1;
+  string name = 2;
+  bool is_registered = 3;
+  QueuedItemStatus current_track = 4;
+  bool is_silence = 5;
+  repeated QueuedItemStatus queue = 6;
+  int64 listener_count = 7;
+  int64 uptime_seconds = 8;
+}
