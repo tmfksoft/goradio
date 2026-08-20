@@ -44,6 +44,20 @@ someone with repo admin access can do.
   `.proto` files — generated code is committed under `gen/go/`, so a normal
   build doesn't need them.
 
+## Pre-built binaries
+
+Tagged releases (`vX.Y.Z`) publish `linux/amd64` and `windows/amd64`
+archives to [GitHub Releases](https://github.com/tmfksoft/goradio/releases)
+via `.github/workflows/release.yml` — each contains the `radio` binary,
+`server.example.yaml`, `station.example.yaml`, a starter `station.lua`, and
+a `GETTING_STARTED.txt`. To build the same archives locally (any commit,
+not just tags):
+
+```sh
+make release              # -> dist/release/goradio-dev-{linux,windows}-amd64.{tar.gz,zip}
+make release VERSION=v0.1.0
+```
+
 ## Quickstart
 
 ```sh

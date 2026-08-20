@@ -1,0 +1,22 @@
+GoRadio {{VERSION}} ({{GOOS}}/{{GOARCH}})
+=====================================
+
+Full docs: https://tmfksoft.github.io/goradio/
+
+1. Copy server.example.yaml to server.yaml and set a real auth.jwt_secret.
+
+   {{BIN}} serve --config server.yaml
+
+2. Mint a token authorizing a station slug (must match the secret above):
+
+   {{BIN}} tokengen -secret <jwt_secret> myfm
+
+3. Copy station.example.yaml to station.yaml, paste the token from step 2
+   into its auth.jwt field.
+
+   {{BIN}} station --config station.yaml --script station.lua myfm "My FM"
+
+   station.lua is a minimal starter script -- open it and add some audio
+   files to the `playlist` table to hear something other than silence.
+
+4. Listen at: http://<server.yaml http.listen_addr>/stream/myfm
