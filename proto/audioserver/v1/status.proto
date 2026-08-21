@@ -50,4 +50,10 @@ message GetStatusResponse {
   // current afterward from TRACK_ENDED events on SubscribeEvents rather
   // than re-polling GetStatus.
   repeated HistoryEntryStatus history = 10;
+  // True if current_track is paused (see Pause) -- the station is
+  // playing silence but holding current_track's position, ready to
+  // continue from current_track_elapsed_seconds on Resume.
+  bool is_paused = 11;
+  // The station's logo/artwork URL, if set (see RegisterStationRequest).
+  string logo_url = 12;
 }

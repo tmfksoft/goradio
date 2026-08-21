@@ -178,6 +178,11 @@ type TrackSource struct {
 	Location      string `protobuf:"bytes,2,opt,name=location,proto3" json:"location,omitempty"`
 	DisplayTitle  string `protobuf:"bytes,3,opt,name=display_title,json=displayTitle,proto3" json:"display_title,omitempty"`
 	DisplayArtist string `protobuf:"bytes,4,opt,name=display_artist,json=displayArtist,proto3" json:"display_artist,omitempty"`
+	// Optional cover art URL, carried through unchanged to
+	// QueuedItemStatus/HistoryEntryStatus/TrackStartedPayload wherever this
+	// source appears -- purely descriptive metadata, never fetched or
+	// validated by the audio server itself.
+	CoverArtUrl   string `protobuf:"bytes,5,opt,name=cover_art_url,json=coverArtUrl,proto3" json:"cover_art_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -236,6 +241,13 @@ func (x *TrackSource) GetDisplayTitle() string {
 func (x *TrackSource) GetDisplayArtist() string {
 	if x != nil {
 		return x.DisplayArtist
+	}
+	return ""
+}
+
+func (x *TrackSource) GetCoverArtUrl() string {
+	if x != nil {
+		return x.CoverArtUrl
 	}
 	return ""
 }
@@ -791,16 +803,420 @@ func (x *SkipToResponse) GetInterruptedCurrent() bool {
 	return false
 }
 
+// PauseRequest pauses the current track in place: the station falls back
+// to the silence loop, same as an empty queue, until Resume. Not
+// applicable to a live relay (no fixed position to hold) or when nothing
+// is playing.
+type PauseRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PauseRequest) Reset() {
+	*x = PauseRequest{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PauseRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PauseRequest) ProtoMessage() {}
+
+func (x *PauseRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PauseRequest.ProtoReflect.Descriptor instead.
+func (*PauseRequest) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *PauseRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+type PauseResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// False (not an error) if nothing was playing, the current track is a
+	// live relay, or it was already paused.
+	Paused        bool `protobuf:"varint,1,opt,name=paused,proto3" json:"paused,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PauseResponse) Reset() {
+	*x = PauseResponse{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PauseResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PauseResponse) ProtoMessage() {}
+
+func (x *PauseResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PauseResponse.ProtoReflect.Descriptor instead.
+func (*PauseResponse) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *PauseResponse) GetPaused() bool {
+	if x != nil {
+		return x.Paused
+	}
+	return false
+}
+
+// ResumeRequest resumes a paused track from exactly where it was paused.
+type ResumeRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeRequest) Reset() {
+	*x = ResumeRequest{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeRequest) ProtoMessage() {}
+
+func (x *ResumeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeRequest.ProtoReflect.Descriptor instead.
+func (*ResumeRequest) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ResumeRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+type ResumeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// False (not an error) if the station wasn't paused.
+	Resumed       bool `protobuf:"varint,1,opt,name=resumed,proto3" json:"resumed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResumeResponse) Reset() {
+	*x = ResumeResponse{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResumeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResumeResponse) ProtoMessage() {}
+
+func (x *ResumeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResumeResponse.ProtoReflect.Descriptor instead.
+func (*ResumeResponse) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ResumeResponse) GetResumed() bool {
+	if x != nil {
+		return x.Resumed
+	}
+	return false
+}
+
+// SeekRequest jumps the current track to an absolute position, clamped to
+// [0, duration]. Works whether or not the station is currently paused --
+// seeking while paused just moves where Resume will pick up. Not
+// applicable to a live relay (no fixed position to seek within) or when
+// nothing is playing.
+type SeekRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Slug            string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	PositionSeconds int64                  `protobuf:"varint,2,opt,name=position_seconds,json=positionSeconds,proto3" json:"position_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SeekRequest) Reset() {
+	*x = SeekRequest{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeekRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeekRequest) ProtoMessage() {}
+
+func (x *SeekRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeekRequest.ProtoReflect.Descriptor instead.
+func (*SeekRequest) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SeekRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *SeekRequest) GetPositionSeconds() int64 {
+	if x != nil {
+		return x.PositionSeconds
+	}
+	return 0
+}
+
+type SeekResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// False (not an error) if nothing was playing or the current track is a
+	// live relay.
+	Seeked bool `protobuf:"varint,1,opt,name=seeked,proto3" json:"seeked,omitempty"`
+	// The resulting position after clamping. Only meaningful if seeked.
+	PositionSeconds int64 `protobuf:"varint,2,opt,name=position_seconds,json=positionSeconds,proto3" json:"position_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SeekResponse) Reset() {
+	*x = SeekResponse{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeekResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeekResponse) ProtoMessage() {}
+
+func (x *SeekResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeekResponse.ProtoReflect.Descriptor instead.
+func (*SeekResponse) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *SeekResponse) GetSeeked() bool {
+	if x != nil {
+		return x.Seeked
+	}
+	return false
+}
+
+func (x *SeekResponse) GetPositionSeconds() int64 {
+	if x != nil {
+		return x.PositionSeconds
+	}
+	return 0
+}
+
+// SeekByRequest jumps the current track by a signed delta from its
+// current position (positive = forward, negative = backward), clamped to
+// [0, duration]. See SeekRequest.
+type SeekByRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	DeltaSeconds  int64                  `protobuf:"varint,2,opt,name=delta_seconds,json=deltaSeconds,proto3" json:"delta_seconds,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SeekByRequest) Reset() {
+	*x = SeekByRequest{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeekByRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeekByRequest) ProtoMessage() {}
+
+func (x *SeekByRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeekByRequest.ProtoReflect.Descriptor instead.
+func (*SeekByRequest) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *SeekByRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *SeekByRequest) GetDeltaSeconds() int64 {
+	if x != nil {
+		return x.DeltaSeconds
+	}
+	return 0
+}
+
+type SeekByResponse struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Seeked          bool                   `protobuf:"varint,1,opt,name=seeked,proto3" json:"seeked,omitempty"`
+	PositionSeconds int64                  `protobuf:"varint,2,opt,name=position_seconds,json=positionSeconds,proto3" json:"position_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SeekByResponse) Reset() {
+	*x = SeekByResponse{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SeekByResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SeekByResponse) ProtoMessage() {}
+
+func (x *SeekByResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SeekByResponse.ProtoReflect.Descriptor instead.
+func (*SeekByResponse) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *SeekByResponse) GetSeeked() bool {
+	if x != nil {
+		return x.Seeked
+	}
+	return false
+}
+
+func (x *SeekByResponse) GetPositionSeconds() int64 {
+	if x != nil {
+		return x.PositionSeconds
+	}
+	return 0
+}
+
 var File_audioserver_v1_queue_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_queue_proto_rawDesc = "" +
 	"\n" +
-	"\x1aaudioserver/v1/queue.proto\x12\x0eaudioserver.v1\"\xaa\x01\n" +
+	"\x1aaudioserver/v1/queue.proto\x12\x0eaudioserver.v1\"\xce\x01\n" +
 	"\vTrackSource\x123\n" +
 	"\x04type\x18\x01 \x01(\x0e2\x1f.audioserver.v1.TrackSourceTypeR\x04type\x12\x1a\n" +
 	"\blocation\x18\x02 \x01(\tR\blocation\x12#\n" +
 	"\rdisplay_title\x18\x03 \x01(\tR\fdisplayTitle\x12%\n" +
-	"\x0edisplay_artist\x18\x04 \x01(\tR\rdisplayArtist\"\xc7\x01\n" +
+	"\x0edisplay_artist\x18\x04 \x01(\tR\rdisplayArtist\x12\"\n" +
+	"\rcover_art_url\x18\x05 \x01(\tR\vcoverArtUrl\"\xc7\x01\n" +
 	"\x11QueueTrackRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x123\n" +
 	"\x06source\x18\x02 \x01(\v2\x1b.audioserver.v1.TrackSourceR\x06source\x12-\n" +
@@ -832,7 +1248,27 @@ const file_audioserver_v1_queue_proto_rawDesc = "" +
 	"\bqueue_id\x18\x02 \x01(\tR\aqueueId\"f\n" +
 	"\x0eSkipToResponse\x12#\n" +
 	"\rremoved_count\x18\x01 \x01(\x05R\fremovedCount\x12/\n" +
-	"\x13interrupted_current\x18\x02 \x01(\bR\x12interruptedCurrent*{\n" +
+	"\x13interrupted_current\x18\x02 \x01(\bR\x12interruptedCurrent\"\"\n" +
+	"\fPauseRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\"'\n" +
+	"\rPauseResponse\x12\x16\n" +
+	"\x06paused\x18\x01 \x01(\bR\x06paused\"#\n" +
+	"\rResumeRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\"*\n" +
+	"\x0eResumeResponse\x12\x18\n" +
+	"\aresumed\x18\x01 \x01(\bR\aresumed\"L\n" +
+	"\vSeekRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12)\n" +
+	"\x10position_seconds\x18\x02 \x01(\x03R\x0fpositionSeconds\"Q\n" +
+	"\fSeekResponse\x12\x16\n" +
+	"\x06seeked\x18\x01 \x01(\bR\x06seeked\x12)\n" +
+	"\x10position_seconds\x18\x02 \x01(\x03R\x0fpositionSeconds\"H\n" +
+	"\rSeekByRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12#\n" +
+	"\rdelta_seconds\x18\x02 \x01(\x03R\fdeltaSeconds\"S\n" +
+	"\x0eSeekByResponse\x12\x16\n" +
+	"\x06seeked\x18\x01 \x01(\bR\x06seeked\x12)\n" +
+	"\x10position_seconds\x18\x02 \x01(\x03R\x0fpositionSeconds*{\n" +
 	"\tQueueMode\x12\x1a\n" +
 	"\x16QUEUE_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11QUEUE_MODE_APPEND\x10\x01\x12\x18\n" +
@@ -860,7 +1296,7 @@ func file_audioserver_v1_queue_proto_rawDescGZIP() []byte {
 }
 
 var file_audioserver_v1_queue_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_audioserver_v1_queue_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_audioserver_v1_queue_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_audioserver_v1_queue_proto_goTypes = []any{
 	(QueueMode)(0),                  // 0: audioserver.v1.QueueMode
 	(Transition)(0),                 // 1: audioserver.v1.Transition
@@ -876,6 +1312,14 @@ var file_audioserver_v1_queue_proto_goTypes = []any{
 	(*SkipResponse)(nil),            // 11: audioserver.v1.SkipResponse
 	(*SkipToRequest)(nil),           // 12: audioserver.v1.SkipToRequest
 	(*SkipToResponse)(nil),          // 13: audioserver.v1.SkipToResponse
+	(*PauseRequest)(nil),            // 14: audioserver.v1.PauseRequest
+	(*PauseResponse)(nil),           // 15: audioserver.v1.PauseResponse
+	(*ResumeRequest)(nil),           // 16: audioserver.v1.ResumeRequest
+	(*ResumeResponse)(nil),          // 17: audioserver.v1.ResumeResponse
+	(*SeekRequest)(nil),             // 18: audioserver.v1.SeekRequest
+	(*SeekResponse)(nil),            // 19: audioserver.v1.SeekResponse
+	(*SeekByRequest)(nil),           // 20: audioserver.v1.SeekByRequest
+	(*SeekByResponse)(nil),          // 21: audioserver.v1.SeekByResponse
 }
 var file_audioserver_v1_queue_proto_depIdxs = []int32{
 	2, // 0: audioserver.v1.TrackSource.type:type_name -> audioserver.v1.TrackSourceType
@@ -900,7 +1344,7 @@ func file_audioserver_v1_queue_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audioserver_v1_queue_proto_rawDesc), len(file_audioserver_v1_queue_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   11,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

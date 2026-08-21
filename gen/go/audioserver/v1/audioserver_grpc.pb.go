@@ -27,6 +27,10 @@ const (
 	AudioServerService_ClearQueue_FullMethodName        = "/audioserver.v1.AudioServerService/ClearQueue"
 	AudioServerService_Skip_FullMethodName              = "/audioserver.v1.AudioServerService/Skip"
 	AudioServerService_SkipTo_FullMethodName            = "/audioserver.v1.AudioServerService/SkipTo"
+	AudioServerService_Pause_FullMethodName             = "/audioserver.v1.AudioServerService/Pause"
+	AudioServerService_Resume_FullMethodName            = "/audioserver.v1.AudioServerService/Resume"
+	AudioServerService_Seek_FullMethodName              = "/audioserver.v1.AudioServerService/Seek"
+	AudioServerService_SeekBy_FullMethodName            = "/audioserver.v1.AudioServerService/SeekBy"
 	AudioServerService_GetStatus_FullMethodName         = "/audioserver.v1.AudioServerService/GetStatus"
 	AudioServerService_SubscribeEvents_FullMethodName   = "/audioserver.v1.AudioServerService/SubscribeEvents"
 )
@@ -43,6 +47,10 @@ type AudioServerServiceClient interface {
 	ClearQueue(ctx context.Context, in *ClearQueueRequest, opts ...grpc.CallOption) (*ClearQueueResponse, error)
 	Skip(ctx context.Context, in *SkipRequest, opts ...grpc.CallOption) (*SkipResponse, error)
 	SkipTo(ctx context.Context, in *SkipToRequest, opts ...grpc.CallOption) (*SkipToResponse, error)
+	Pause(ctx context.Context, in *PauseRequest, opts ...grpc.CallOption) (*PauseResponse, error)
+	Resume(ctx context.Context, in *ResumeRequest, opts ...grpc.CallOption) (*ResumeResponse, error)
+	Seek(ctx context.Context, in *SeekRequest, opts ...grpc.CallOption) (*SeekResponse, error)
+	SeekBy(ctx context.Context, in *SeekByRequest, opts ...grpc.CallOption) (*SeekByResponse, error)
 	GetStatus(ctx context.Context, in *GetStatusRequest, opts ...grpc.CallOption) (*GetStatusResponse, error)
 	SubscribeEvents(ctx context.Context, in *SubscribeEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[StationEvent], error)
 }
@@ -135,6 +143,46 @@ func (c *audioServerServiceClient) SkipTo(ctx context.Context, in *SkipToRequest
 	return out, nil
 }
 
+func (c *audioServerServiceClient) Pause(ctx context.Context, in *PauseRequest, opts ...grpc.CallOption) (*PauseResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PauseResponse)
+	err := c.cc.Invoke(ctx, AudioServerService_Pause_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *audioServerServiceClient) Resume(ctx context.Context, in *ResumeRequest, opts ...grpc.CallOption) (*ResumeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ResumeResponse)
+	err := c.cc.Invoke(ctx, AudioServerService_Resume_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *audioServerServiceClient) Seek(ctx context.Context, in *SeekRequest, opts ...grpc.CallOption) (*SeekResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SeekResponse)
+	err := c.cc.Invoke(ctx, AudioServerService_Seek_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *audioServerServiceClient) SeekBy(ctx context.Context, in *SeekByRequest, opts ...grpc.CallOption) (*SeekByResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SeekByResponse)
+	err := c.cc.Invoke(ctx, AudioServerService_SeekBy_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *audioServerServiceClient) GetStatus(ctx context.Context, in *GetStatusRequest, opts ...grpc.CallOption) (*GetStatusResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetStatusResponse)
@@ -176,6 +224,10 @@ type AudioServerServiceServer interface {
 	ClearQueue(context.Context, *ClearQueueRequest) (*ClearQueueResponse, error)
 	Skip(context.Context, *SkipRequest) (*SkipResponse, error)
 	SkipTo(context.Context, *SkipToRequest) (*SkipToResponse, error)
+	Pause(context.Context, *PauseRequest) (*PauseResponse, error)
+	Resume(context.Context, *ResumeRequest) (*ResumeResponse, error)
+	Seek(context.Context, *SeekRequest) (*SeekResponse, error)
+	SeekBy(context.Context, *SeekByRequest) (*SeekByResponse, error)
 	GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error)
 	SubscribeEvents(*SubscribeEventsRequest, grpc.ServerStreamingServer[StationEvent]) error
 	mustEmbedUnimplementedAudioServerServiceServer()
@@ -211,6 +263,18 @@ func (UnimplementedAudioServerServiceServer) Skip(context.Context, *SkipRequest)
 }
 func (UnimplementedAudioServerServiceServer) SkipTo(context.Context, *SkipToRequest) (*SkipToResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SkipTo not implemented")
+}
+func (UnimplementedAudioServerServiceServer) Pause(context.Context, *PauseRequest) (*PauseResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Pause not implemented")
+}
+func (UnimplementedAudioServerServiceServer) Resume(context.Context, *ResumeRequest) (*ResumeResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Resume not implemented")
+}
+func (UnimplementedAudioServerServiceServer) Seek(context.Context, *SeekRequest) (*SeekResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Seek not implemented")
+}
+func (UnimplementedAudioServerServiceServer) SeekBy(context.Context, *SeekByRequest) (*SeekByResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method SeekBy not implemented")
 }
 func (UnimplementedAudioServerServiceServer) GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetStatus not implemented")
@@ -383,6 +447,78 @@ func _AudioServerService_SkipTo_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AudioServerService_Pause_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PauseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AudioServerServiceServer).Pause(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AudioServerService_Pause_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AudioServerServiceServer).Pause(ctx, req.(*PauseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AudioServerService_Resume_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ResumeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AudioServerServiceServer).Resume(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AudioServerService_Resume_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AudioServerServiceServer).Resume(ctx, req.(*ResumeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AudioServerService_Seek_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SeekRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AudioServerServiceServer).Seek(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AudioServerService_Seek_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AudioServerServiceServer).Seek(ctx, req.(*SeekRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AudioServerService_SeekBy_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SeekByRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AudioServerServiceServer).SeekBy(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AudioServerService_SeekBy_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AudioServerServiceServer).SeekBy(ctx, req.(*SeekByRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AudioServerService_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetStatusRequest)
 	if err := dec(in); err != nil {
@@ -450,6 +586,22 @@ var AudioServerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "SkipTo",
 			Handler:    _AudioServerService_SkipTo_Handler,
+		},
+		{
+			MethodName: "Pause",
+			Handler:    _AudioServerService_Pause_Handler,
+		},
+		{
+			MethodName: "Resume",
+			Handler:    _AudioServerService_Resume_Handler,
+		},
+		{
+			MethodName: "Seek",
+			Handler:    _AudioServerService_Seek_Handler,
+		},
+		{
+			MethodName: "SeekBy",
+			Handler:    _AudioServerService_SeekBy_Handler,
 		},
 		{
 			MethodName: "GetStatus",

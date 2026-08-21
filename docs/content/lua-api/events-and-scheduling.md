@@ -43,6 +43,7 @@ radio.on_track_started(function(track)
   print(track.location)          -- the TrackSource location that started playing
   print(track.title)             -- display_title, if the source set one
   print(track.artist)            -- display_artist, if the source set one
+  print(track.cover_art)         -- cover_art_url, if the source set one
   print(track.duration_seconds)  -- 0 = unknown/indefinite (a live relay)
 end)
 ```

@@ -43,7 +43,8 @@ A read-only token can still call `GetStatus` and `SubscribeEvents` (and
 the [now-playing HTTP endpoint](../developer-api/now-playing-http-api.md),
 though that one doesn't need a token at all for its public fields) — every
 write RPC (`RegisterStation`, `UnregisterStation`, `QueueTrack`,
-`RemoveFromQueue`, `ClearQueue`, `Skip`, `SkipTo`) gets `PermissionDenied`. Use this for anything that
+`RemoveFromQueue`, `ClearQueue`, `Skip`, `SkipTo`, `Pause`, `Resume`,
+`Seek`, `SeekBy`) gets `PermissionDenied`. Use this for anything that
 should only ever observe a station — a dashboard, a bot, a second
 controller instance that watches but never queues — without trusting it
 not to also call `QueueTrack` by mistake or by design.

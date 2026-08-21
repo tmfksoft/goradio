@@ -13,13 +13,18 @@ service AudioServerService {
   rpc ClearQueue(ClearQueueRequest) returns (ClearQueueResponse);
   rpc Skip(SkipRequest) returns (SkipResponse);
   rpc SkipTo(SkipToRequest) returns (SkipToResponse);
+  rpc Pause(PauseRequest) returns (PauseResponse);
+  rpc Resume(ResumeRequest) returns (ResumeResponse);
+  rpc Seek(SeekRequest) returns (SeekResponse);
+  rpc SeekBy(SeekByRequest) returns (SeekByResponse);
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc SubscribeEvents(SubscribeEventsRequest) returns (stream StationEvent);
 }
 ```
 
-Ten RPCs: nine unary commands, one server-streaming feed of events. There
-is no bidirectional streaming — commands are always plain request/response.
+Fourteen RPCs: thirteen unary commands, one server-streaming feed of
+events. There is no bidirectional streaming — commands are always plain
+request/response.
 
 ## Authentication
 
@@ -55,7 +60,7 @@ pattern.
 `read_only` (optional, default `false` — omit the field entirely for a
 normal read-write token) additionally gates every **write** RPC —
 `RegisterStation`, `UnregisterStation`, `QueueTrack`, `RemoveFromQueue`,
-`ClearQueue`, `Skip`, `SkipTo` —
+`ClearQueue`, `Skip`, `SkipTo`, `Pause`, `Resume`, `Seek`, `SeekBy` —
 behind `read_only` being false; a read-only token gets `PermissionDenied`
 on any of those, while `GetStatus`, `SubscribeEvents`, and the
 [now-playing HTTP endpoint](now-playing-http-api.md) remain available
@@ -77,6 +82,7 @@ message RegisterStationRequest {
   string name = 2;
   string description = 3;
   int32 low_queue_threshold = 4;
+  string logo_url = 5;
 }
 
 message RegisterStationResponse {
@@ -87,16 +93,25 @@ message RegisterStationResponse {
 ```
 
 Registers a station. **Idempotent by slug**: if `slug` is already
-registered, this just updates `name`/`description`/`low_queue_threshold`
-in place and returns `re_registered = true` — it does **not** reset the
-queue or interrupt playback. Call this on every (re)connect, not just once
-ever — see [Writing a Controller](writing-a-controller.md#reconnecting).
+registered, this just updates `name`/`description`/`logo_url`/
+`low_queue_threshold` in place and returns `re_registered = true` — it
+does **not** reset the queue or interrupt playback. Call this on every
+(re)connect, not just once ever — see
+[Writing a Controller](writing-a-controller.md#reconnecting).
 
 `low_queue_threshold` (optional, default 0/disabled): if > 0, the server
 fires `EVENT_TYPE_QUEUE_LOW` (edge-triggered, see
 [SubscribeEvents](#subscribeevents)) whenever the pending queue length
 drops to or below it, so you don't have to poll `GetStatus` to know when
 to queue more.
+
+`logo_url` (optional): a station logo/artwork URL, surfaced via
+`GetStatus`/`ListStations`. Purely descriptive — never fetched or
+validated by the audio server. Every field on this request is fully
+replaced on re-registration, not merged, so to update just the logo on
+the fly, re-send the same `name`/`description` along with the new
+`logo_url` — omitting it on a later call clears a previously set one,
+same as omitting `name`/`description` would.
 
 `stream_url` is the fully-qualified listener URL (built from the server's
 `http.public_base_url` config), suitable for handing straight to a player.
@@ -130,6 +145,7 @@ message StationSummary {
   string slug = 1;
   string name = 2;
   int64 listener_count = 3;
+  string logo_url = 4;
 }
 
 message ListStationsResponse {
@@ -175,6 +191,7 @@ message TrackSource {
   string location = 2;          // relative path (LOCAL_FILE) or http(s) URL (HTTP_URL)
   string display_title = 3;
   string display_artist = 4;
+  string cover_art_url = 5;
 }
 
 message QueueTrackRequest {
@@ -191,6 +208,12 @@ message QueueTrackResponse {
 }
 ```
 
+- `display_title`, `display_artist`, and `cover_art_url` are all optional
+  and purely descriptive — never fetched or validated by the audio server.
+  They're carried through unchanged to `QueuedItemStatus`/
+  `HistoryEntryStatus`/`TrackStartedPayload` wherever this `TrackSource`
+  appears, for a controller/dashboard to render without needing its own
+  metadata store.
 - `TRACK_SOURCE_TYPE_LOCAL_FILE`'s `location` is resolved relative to the
   audio server's `audio.audio_root` config; it's rejected if it resolves
   outside that root (no `../` traversal).
@@ -306,6 +329,82 @@ pending item — in particular, you can't `SkipTo` whatever's already
 playing, since it's left the queue by then; use plain `Skip` to interrupt
 the current track without changing what plays after it.
 
+## Pause / Resume
+
+```proto
+message PauseRequest {
+  string slug = 1;
+}
+
+message PauseResponse {
+  bool paused = 1;
+}
+
+message ResumeRequest {
+  string slug = 1;
+}
+
+message ResumeResponse {
+  bool resumed = 1;
+}
+```
+
+`Pause` pauses the current track **in place**: the station falls back to
+the silence loop, same as an empty queue, until `Resume`, which picks the
+track back up from exactly where it was paused. This is a station-wide
+pause, like everything else here — it affects the one shared broadcast
+every listener is tuned into, not some per-listener state (there's no
+per-listener playback in this protocol at all; see `SkipTo` for the same
+point about positions).
+
+Both return `false` rather than erroring when there's nothing sensible to
+do: `paused` is `false` if nothing is playing, the current track is a live
+relay (no fixed position to hold — see `QueueTrack`'s note on live
+streams), or it was already paused; `resumed` is `false` if the station
+wasn't paused. `Skip`/`SkipTo`/`ClearQueue` all still work as normal on a
+paused station — they end the paused track (or replace it) rather than
+being swallowed by the pause.
+
+## Seek / SeekBy
+
+```proto
+message SeekRequest {
+  string slug = 1;
+  int64 position_seconds = 2;
+}
+
+message SeekResponse {
+  bool seeked = 1;
+  int64 position_seconds = 2;
+}
+
+message SeekByRequest {
+  string slug = 1;
+  int64 delta_seconds = 2;
+}
+
+message SeekByResponse {
+  bool seeked = 1;
+  int64 position_seconds = 2;
+}
+```
+
+`Seek` jumps the current track to an absolute `position_seconds`; `SeekBy`
+jumps by a signed `delta_seconds` from wherever it currently is (positive
+= forward, negative = backward). Both clamp to `[0, duration_seconds]` and
+return the resulting (clamped) position. This works because every cached
+clip is transcoded to a fixed CBR format specifically so a time position
+converts to an exact byte offset with no frame decoding needed — see
+[Known gaps](../index.md#known-gaps) for what this doesn't cover (live
+relays, below).
+
+`seeked` is `false` (not an error) if nothing seekable is playing — no
+current track, or it's a live relay (no fixed position to seek within, or
+pause to hold — the only way to move past a live relay is `Skip`/`SkipTo`).
+Works the same whether or not the station is currently paused: seeking
+while paused just moves where `Resume` will pick up, without itself
+resuming playback.
+
 ## GetStatus
 
 ```proto
@@ -340,6 +439,8 @@ message GetStatusResponse {
   int64 uptime_seconds = 8;
   int64 current_track_elapsed_seconds = 9;   // only meaningful when current_track is set
   repeated HistoryEntryStatus history = 10;
+  bool is_paused = 11;   // true if current_track is paused (see Pause)
+  string logo_url = 12;  // station logo/artwork URL, if set (see RegisterStation)
 }
 ```
 
@@ -365,7 +466,10 @@ computed from the cached, fixed-CBR file's size once transcoding
 completes, not probed with a separate tool. `current_track_elapsed_seconds`
 combined with `current_track.duration_seconds` is enough to render a
 progress bar; render it as an indefinite/pulsing bar instead of a fixed
-length when `duration_seconds` is `0`.
+length when `duration_seconds` is `0`. `current_track_elapsed_seconds`
+accounts for `Pause`/`Seek`/`SeekBy` correctly — it freezes while
+`is_paused` and jumps on a seek, rather than just tracking wall-clock time
+since the track started.
 
 ## SubscribeEvents
 

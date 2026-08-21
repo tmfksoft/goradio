@@ -13,9 +13,11 @@
 ---@field location string # path relative to the audio server's audio_root, or an http(s):// URL
 ---@field title? string
 ---@field artist? string
+---@field cover_art? string # cover art URL, purely descriptive -- never fetched or validated by the audio server
 
 ---@class RadioRegisterOptions
 ---@field low_queue_threshold? integer # > 0 enables radio.on_queue_low; 0 (default) disables it
+---@field logo_url? string # station logo/artwork URL, surfaced via radio.status()/radio.list_stations()
 
 ---@class RadioRegisterInfo
 ---@field slug string
@@ -32,6 +34,7 @@
 ---@field location string
 ---@field title string
 ---@field artist string
+---@field cover_art string
 ---@field mode string
 ---@field duration_seconds integer # 0 = unknown/indefinite (a live relay, or not-yet-ready)
 
@@ -44,9 +47,11 @@
 ---@field name string
 ---@field is_registered boolean
 ---@field is_silence boolean
+---@field is_paused boolean # true if current_track is paused (see radio.pause) -- silence is playing but current_track's position is held for radio.resume
 ---@field listener_count integer
 ---@field uptime_seconds integer
 ---@field queue_length integer
+---@field logo_url string # station logo/artwork URL, if set (see radio.register's options.logo_url)
 ---@field current_track? RadioQueueItem # nil while playing silence
 ---@field elapsed_seconds? integer # how long current_track has been playing; only set when current_track is
 ---@field queue RadioQueueItem[] # pending items, in play order
@@ -57,6 +62,7 @@
 ---@field location string
 ---@field title string
 ---@field artist string
+---@field cover_art string
 ---@field duration_seconds integer # 0 = unknown/indefinite (a live relay)
 
 ---@class RadioTrackEndedEvent
@@ -75,6 +81,7 @@
 ---@field slug string
 ---@field name string
 ---@field listener_count integer
+---@field logo_url string
 
 ---@class radiolib
 ---@field args string[] # CLI args after --config/--script, e.g. {"myfm", "My FM"}
@@ -147,6 +154,37 @@ function radio.skip() end
 ---@return integer removed_count
 ---@return boolean interrupted_current
 function radio.skip_to(queue_id) end
+
+--- Pauses the current track in place -- the station falls back to the
+--- silence loop, same as an empty queue, until radio.resume(). Returns
+--- false (not an error) if nothing is playing, the current track is a
+--- live stream (no fixed position to hold), or it's already paused.
+---@return boolean paused
+function radio.pause() end
+
+--- Resumes a paused track from exactly where it was paused. Returns
+--- false if the station wasn't paused.
+---@return boolean resumed
+function radio.resume() end
+
+--- Jumps the current track to an absolute position, clamped to
+--- [0, duration]. Works whether or not the station is currently paused --
+--- seeking while paused just moves where radio.resume() will pick up.
+--- Returns seeked = false (not an error) if nothing seekable is playing --
+--- no current track, or it's a live stream (no fixed position to seek
+--- within).
+---@param position_seconds integer
+---@return boolean seeked
+---@return integer position_seconds
+function radio.seek(position_seconds) end
+
+--- Jumps the current track by a signed delta from its current position
+--- (positive = forward, negative = backward), clamped to [0, duration].
+--- See radio.seek.
+---@param delta_seconds integer
+---@return boolean seeked
+---@return integer position_seconds
+function radio.seek_by(delta_seconds) end
 
 --- An on-demand snapshot of the registered station's current state.
 ---@return RadioStatus

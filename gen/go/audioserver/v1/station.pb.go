@@ -35,8 +35,14 @@ type RegisterStationRequest struct {
 	// when to queue more. 0 (the default) disables the event. Updated in
 	// place on re-registration, same as name/description.
 	LowQueueThreshold int32 `protobuf:"varint,4,opt,name=low_queue_threshold,json=lowQueueThreshold,proto3" json:"low_queue_threshold,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Optional station logo/artwork URL, surfaced via GetStatus and
+	// ListStations. Updated in place on re-registration, same as
+	// name/description -- re-register with a new value (and the same
+	// name/description) to change it on the fly without disrupting
+	// playback.
+	LogoUrl       string `protobuf:"bytes,5,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RegisterStationRequest) Reset() {
@@ -95,6 +101,13 @@ func (x *RegisterStationRequest) GetLowQueueThreshold() int32 {
 		return x.LowQueueThreshold
 	}
 	return 0
+}
+
+func (x *RegisterStationRequest) GetLogoUrl() string {
+	if x != nil {
+		return x.LogoUrl
+	}
+	return ""
 }
 
 type RegisterStationResponse struct {
@@ -286,6 +299,7 @@ type StationSummary struct {
 	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	ListenerCount int64                  `protobuf:"varint,3,opt,name=listener_count,json=listenerCount,proto3" json:"listener_count,omitempty"`
+	LogoUrl       string                 `protobuf:"bytes,4,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -341,6 +355,13 @@ func (x *StationSummary) GetListenerCount() int64 {
 	return 0
 }
 
+func (x *StationSummary) GetLogoUrl() string {
+	if x != nil {
+		return x.LogoUrl
+	}
+	return ""
+}
+
 type ListStationsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Only stations the caller's token authorizes (see Claims.HasSlug) --
@@ -391,12 +412,13 @@ var File_audioserver_v1_station_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_station_proto_rawDesc = "" +
 	"\n" +
-	"\x1caudioserver/v1/station.proto\x12\x0eaudioserver.v1\"\x92\x01\n" +
+	"\x1caudioserver/v1/station.proto\x12\x0eaudioserver.v1\"\xad\x01\n" +
 	"\x16RegisterStationRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12.\n" +
-	"\x13low_queue_threshold\x18\x04 \x01(\x05R\x11lowQueueThreshold\"q\n" +
+	"\x13low_queue_threshold\x18\x04 \x01(\x05R\x11lowQueueThreshold\x12\x19\n" +
+	"\blogo_url\x18\x05 \x01(\tR\alogoUrl\"q\n" +
 	"\x17RegisterStationResponse\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x1d\n" +
 	"\n" +
@@ -405,11 +427,12 @@ const file_audioserver_v1_station_proto_rawDesc = "" +
 	"\x18UnregisterStationRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\"\x1b\n" +
 	"\x19UnregisterStationResponse\"\x15\n" +
-	"\x13ListStationsRequest\"_\n" +
+	"\x13ListStationsRequest\"z\n" +
 	"\x0eStationSummary\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
-	"\x0elistener_count\x18\x03 \x01(\x03R\rlistenerCount\"R\n" +
+	"\x0elistener_count\x18\x03 \x01(\x03R\rlistenerCount\x12\x19\n" +
+	"\blogo_url\x18\x04 \x01(\tR\alogoUrl\"R\n" +
 	"\x14ListStationsResponse\x12:\n" +
 	"\bstations\x18\x01 \x03(\v2\x1e.audioserver.v1.StationSummaryR\bstationsBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 

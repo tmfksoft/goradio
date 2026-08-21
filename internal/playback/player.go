@@ -50,7 +50,7 @@ func (s *Station) Run(ctx context.Context, log *slog.Logger, cfg PlayerConfig) {
 			// Loop the silence clip, re-checking the queue every chunk so a
 			// newly queued track starts within one chunk's latency rather
 			// than waiting for the whole silence clip to finish.
-			s.streamFile(ctx, log, cfg.SilencePath, bytesPerSecond, true, func() bool {
+			s.streamFile(ctx, log, cfg.SilencePath, bytesPerSecond, true, 0, func() bool {
 				return s.Queue.Len() > 0
 			})
 			continue
@@ -70,7 +70,7 @@ func (s *Station) Run(ctx context.Context, log *slog.Logger, cfg PlayerConfig) {
 				s.PublishSilenceStarted()
 				wasSilent = true
 			}
-			s.streamFile(ctx, log, cfg.SilencePath, bytesPerSecond, true, func() bool {
+			s.streamFile(ctx, log, cfg.SilencePath, bytesPerSecond, true, 0, func() bool {
 				select {
 				case <-item.Ready():
 					return true
@@ -102,9 +102,11 @@ func (s *Station) Run(ctx context.Context, log *slog.Logger, cfg PlayerConfig) {
 			// A queued live stream (auto-detected — see audiosource.Resolve)
 			// has no natural end: it "sticks" as the current track until
 			// skipped/interrupted, or the upstream connection itself ends.
+			// Live relays can't be paused or sought -- there's no fixed
+			// position to hold or seek within -- see Station.Pause/Seek.
 			reason = s.streamLiveRelay(ctx, log, item.LiveURL(), cfg)
 		} else {
-			reason = s.streamFile(ctx, log, item.LocalPath(), bytesPerSecond, false, nil)
+			reason = s.playLocalItem(ctx, log, item, cfg, bytesPerSecond)
 		}
 
 		s.SetCurrent(nil)
@@ -113,18 +115,85 @@ func (s *Station) Run(ctx context.Context, log *slog.Logger, cfg PlayerConfig) {
 	}
 }
 
+// playLocalItem streams item's cached file to completion, transparently
+// handling Pause (switches to looping silence, holding the exact byte
+// position reached so far) and Seek/SeekBy (reopens the file at a new
+// position) without ending the track -- only a genuine Interrupt (Skip,
+// SkipTo, ClearQueue, or a new PLAY_NOW_INTERRUPT item) ends it early.
+//
+// Pause/Seek reuse the same underlying stream-cancellation primitive as
+// Interrupt (see Station.cancelCurrentStream), so after streamFile
+// returns "interrupted" this has to work out *why* by checking Station's
+// skipRequested/pendingSeekSeconds/paused state, in that priority order:
+// a genuine skip always wins (Interrupt clears the other two so it can't
+// be mistaken for one of them), then a pending seek, then a pause.
+//
+// Returns "completed" or "interrupted", same as streamFile.
+func (s *Station) playLocalItem(ctx context.Context, log *slog.Logger, item *QueuedItem, cfg PlayerConfig, bytesPerSecond int) string {
+	var offsetBytes int64
+
+	for {
+		reason, sent := s.streamFile(ctx, log, item.LocalPath(), bytesPerSecond, false, offsetBytes, nil)
+		offsetBytes += sent
+
+		if reason != "interrupted" {
+			return reason
+		}
+		if ctx.Err() != nil {
+			return "interrupted"
+		}
+		if s.consumeSkipRequested() {
+			return "interrupted"
+		}
+		if seekTo, ok := s.consumeSeekOffsetBytes(bytesPerSecond); ok {
+			offsetBytes = seekTo
+			continue
+		}
+		if !s.IsPaused() {
+			// Nothing else cancels the stream, but don't spin if it
+			// somehow happens.
+			return "interrupted"
+		}
+
+		// Paused: hold on looping silence, at the byte position reached
+		// above, until Resume (or a seek, which just updates where we'll
+		// resume from without leaving the hold) or a genuine skip.
+		for s.IsPaused() && ctx.Err() == nil {
+			s.streamFile(ctx, log, cfg.SilencePath, bytesPerSecond, true, 0, func() bool {
+				return !s.IsPaused() || s.hasPendingSeek()
+			})
+			if s.consumeSkipRequested() {
+				return "interrupted"
+			}
+			if seekTo, ok := s.consumeSeekOffsetBytes(bytesPerSecond); ok {
+				offsetBytes = seekTo
+			}
+		}
+		if ctx.Err() != nil {
+			return "interrupted"
+		}
+		// Resumed -- loop back around and replay the real file from
+		// offsetBytes.
+	}
+}
+
 // streamFile streams path's bytes to the Broadcaster at bytesPerSecond,
 // pacing writes against a monotonic clock (drift-corrected: each chunk's
-// sleep target is computed from total bytes sent so far, not accumulated
-// per-chunk sleeps) so a full file isn't dumped to listeners instantly.
+// sleep target is computed from bytes sent so far in this call, not
+// accumulated per-chunk sleeps) so a full file isn't dumped to listeners
+// instantly. startOffsetBytes, if > 0, seeks the file to that byte offset
+// before streaming -- used to resume a paused/sought track partway
+// through rather than always from the beginning; pass 0 for a cold start.
 //
 // If loop is true, playback restarts from the beginning on EOF instead of
 // returning, until interrupted — used for the silence clip. checkStop, if
 // non-nil, is polled once per chunk to allow early exit (used to break out
 // of the silence loop as soon as something is queued).
 //
-// Returns "completed" or "interrupted".
-func (s *Station) streamFile(ctx context.Context, log *slog.Logger, path string, bytesPerSecond int, loop bool, checkStop func() bool) string {
+// Returns "completed" or "interrupted", plus how many bytes this call
+// itself sent (not counting startOffsetBytes) -- playLocalItem uses that
+// to track how far into the file a paused/interrupted track got.
+func (s *Station) streamFile(ctx context.Context, log *slog.Logger, path string, bytesPerSecond int, loop bool, startOffsetBytes int64, checkStop func() bool) (reason string, bytesSent int64) {
 	streamCtx, cancel := context.WithCancel(ctx)
 	s.setStreamCancel(cancel)
 	defer func() {
@@ -135,9 +204,16 @@ func (s *Station) streamFile(ctx context.Context, log *slog.Logger, path string,
 	f, err := os.Open(path)
 	if err != nil {
 		log.Warn("failed to open clip for streaming", "slug", s.Slug, "path", path, "error", err)
-		return "interrupted"
+		return "interrupted", 0
 	}
 	defer f.Close()
+
+	if startOffsetBytes > 0 {
+		if _, err := f.Seek(startOffsetBytes, io.SeekStart); err != nil {
+			log.Warn("failed to seek clip for resumed streaming", "slug", s.Slug, "path", path, "offset", startOffsetBytes, "error", err)
+			return "interrupted", 0
+		}
+	}
 
 	chunkSize := int(float64(bytesPerSecond) * streamChunkDuration.Seconds())
 	if chunkSize < 1 {
@@ -146,7 +222,6 @@ func (s *Station) streamFile(ctx context.Context, log *slog.Logger, path string,
 	buf := make([]byte, chunkSize)
 
 	start := time.Now()
-	var bytesSent int64
 
 	for {
 		n, readErr := f.Read(buf)
@@ -163,27 +238,27 @@ func (s *Station) streamFile(ctx context.Context, log *slog.Logger, path string,
 				case <-timer.C:
 				case <-streamCtx.Done():
 					timer.Stop()
-					return "interrupted"
+					return "interrupted", bytesSent
 				}
 			}
 		}
 
 		select {
 		case <-streamCtx.Done():
-			return "interrupted"
+			return "interrupted", bytesSent
 		default:
 		}
 		if checkStop != nil && checkStop() {
-			return "interrupted"
+			return "interrupted", bytesSent
 		}
 
 		if readErr == io.EOF {
 			if !loop {
-				return "completed"
+				return "completed", bytesSent
 			}
 			if _, seekErr := f.Seek(0, io.SeekStart); seekErr != nil {
 				log.Warn("failed to loop clip", "slug", s.Slug, "path", path, "error", seekErr)
-				return "completed"
+				return "completed", bytesSent
 			}
 			start = time.Now()
 			bytesSent = 0
@@ -191,7 +266,7 @@ func (s *Station) streamFile(ctx context.Context, log *slog.Logger, path string,
 		}
 		if readErr != nil {
 			log.Warn("error reading clip", "slug", s.Slug, "path", path, "error", readErr)
-			return "interrupted"
+			return "interrupted", bytesSent
 		}
 	}
 }

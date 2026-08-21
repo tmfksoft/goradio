@@ -18,6 +18,10 @@ service AudioServerService {
   rpc ClearQueue(ClearQueueRequest) returns (ClearQueueResponse);
   rpc Skip(SkipRequest) returns (SkipResponse);
   rpc SkipTo(SkipToRequest) returns (SkipToResponse);
+  rpc Pause(PauseRequest) returns (PauseResponse);
+  rpc Resume(ResumeRequest) returns (ResumeResponse);
+  rpc Seek(SeekRequest) returns (SeekResponse);
+  rpc SeekBy(SeekByRequest) returns (SeekByResponse);
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc SubscribeEvents(SubscribeEventsRequest) returns (stream StationEvent);
 }

@@ -15,12 +15,13 @@ print(info.re_registered)  --> false (true if this slug was already registered)
 `name` and `description` are optional — omitted, `name` defaults to the
 slug and `description` to an empty string.
 
-`options` is an optional table; the only field it currently recognizes is
-`low_queue_threshold`, which enables the [`radio.on_queue_low`](events-and-scheduling.md#radioon_queue_lowfn)
-event:
+`options` is an optional table recognizing two fields:
+
+- `low_queue_threshold` — enables the [`radio.on_queue_low`](events-and-scheduling.md#radioon_queue_lowfn) event.
+- `logo_url` — an optional station logo/artwork URL, surfaced via [`radio.status()`](#radiostatus)/[`radio.list_stations()`](#radiolist_stations). Purely descriptive — never fetched or validated by the audio server.
 
 ```lua
-radio.register("myfm", "My FM", "", {low_queue_threshold = 3})
+radio.register("myfm", "My FM", "", {low_queue_threshold = 3, logo_url = "https://example.com/myfm.png"})
 ```
 
 Registration is **idempotent by slug**: calling it again for a slug that's
@@ -29,7 +30,11 @@ disrupting whatever is currently queued or playing. This is what makes
 reconnects safe — and you don't need to think about reconnects at all,
 because the engine calls this for you automatically (with exponential
 backoff) if the connection to the audio server drops or the server itself
-restarts.
+restarts. It's also how you change the logo (or name/description) **on
+the fly**: just call `radio.register` again with the same slug and the
+new value — nothing is merged, though, so pass every field you want kept
+each time (a call that omits `logo_url` clears a previously set one, same
+as it already does for `name`/`description`).
 
 If the very first `radio.register` call fails for a **transient** reason
 (e.g. the audio server isn't up yet), it blocks and retries internally with
@@ -70,6 +75,7 @@ radio.queue({
   location = "https://example.com/track.mp3",
   title = "Track Title",
   artist = "Some Artist",
+  cover_art = "https://example.com/track-cover.jpg",
 }, "PLAY_NEXT")
 ```
 
@@ -77,10 +83,12 @@ radio.queue({
 
 - a plain string — a path relative to the audio server's `audio.audio_root`,
   or an `http://`/`https://` URL (detected automatically by its prefix), or
-- a table: `{type = "local"|"url", location = ..., title = ..., artist = ...}`.
-  `title`/`artist` are optional metadata carried through to
-  `radio.on_track_started` and future ICY metadata support; `type` is
-  optional too and inferred from `location`'s prefix if omitted.
+- a table: `{type = "local"|"url", location = ..., title = ..., artist = ..., cover_art = ...}`.
+  `title`/`artist`/`cover_art` are all optional metadata carried through
+  unchanged to `radio.on_track_started`, `radio.status()`'s
+  `current_track`/`queue`/`history`, and future ICY metadata support —
+  purely descriptive, never fetched or validated by the audio server;
+  `type` is optional too and inferred from `location`'s prefix if omitted.
 
 **`mode`** (optional, default `"APPEND"`) is one of:
 
@@ -220,6 +228,49 @@ error if `queue_id` isn't a pending item — in particular, you can't
 then; use plain [`radio.skip()`](#radioskip) to interrupt the current
 track without changing what plays after it.
 
+## `radio.pause()` / `radio.resume()`
+
+Pauses the current track **in place** — the station falls back to the
+silence loop, same as an empty queue, until `radio.resume()` — then
+resumes it from exactly where it left off.
+
+```lua
+local paused = radio.pause()    -- station now plays silence
+-- ... later ...
+local resumed = radio.resume()  -- picks the same track back up mid-way
+```
+
+Both return `false` (not an error) rather than doing nothing silently:
+`radio.pause()` is `false` if nothing is playing, the current track is a
+[live stream](#live-streams) (there's no fixed position to hold — a live
+relay can only be skipped, not paused), or it's already paused;
+`radio.resume()` is `false` if the station wasn't paused. This is a
+station-wide pause — like everything else here, it affects the one shared
+broadcast every listener is tuned into, not some per-listener state.
+
+`radio.skip()`/`radio.skip_to()`/`radio.clear_queue()` all still work as
+normal on a paused station — they end the paused track (or replace it)
+rather than being swallowed by the pause.
+
+## `radio.seek(position_seconds)` / `radio.seek_by(delta_seconds)`
+
+Jumps the current track to a new position — `radio.seek` to an absolute
+position, `radio.seek_by` by a signed delta from wherever it currently is
+(positive = forward, negative = backward). Both clamp to
+`[0, duration_seconds]` and return the resulting (clamped) position.
+
+```lua
+local seeked, position = radio.seek(30)      -- jump to 0:30
+local seeked, position = radio.seek_by(10)   -- 10s forward from here
+local seeked, position = radio.seek_by(-10)  -- 10s back
+```
+
+`seeked` is `false` (not an error) if nothing seekable is playing — no
+current track, or it's a [live stream](#live-streams) (no fixed position
+to seek within). Works the same whether or not the station is currently
+paused: seeking while paused just moves where `radio.resume()` will pick
+up, without itself resuming playback.
+
 ## `radio.status()`
 
 An on-demand snapshot of the registered station's current state — a
@@ -228,6 +279,8 @@ synchronous `GetStatus` call.
 ```lua
 local status = radio.status()
 print(status.is_silence)      -- true if playing the fallback silence loop
+print(status.is_paused)       -- true if current_track is paused (see radio.pause)
+print(status.logo_url)        -- station logo/artwork URL, if set
 print(status.listener_count)
 print(status.queue_length)
 print(status.uptime_seconds)
@@ -261,8 +314,8 @@ queued live stream.
 small fixed count (currently 20) — each entry adds `reason`
 (`"completed"`/`"interrupted"`) and `ended_at_unix_ms` on top of the same
 shape as `queue`'s items. To requeue something from history, just call
-`radio.queue` again with its `location`/`title`/`artist` — there's no
-separate "requeue" call.
+`radio.queue` again with its `location`/`title`/`artist`/`cover_art` —
+there's no separate "requeue" call.
 
 `status()` and its `history` field are meant for a one-shot fetch (e.g.
 right after `radio.register`, to see what was already playing/queued from
@@ -279,14 +332,14 @@ to have been called first, since it isn't scoped to "this" station at all.
 
 ```lua
 for _, st in ipairs(radio.list_stations()) do
-  print(st.slug, st.name, st.listener_count)
+  print(st.slug, st.name, st.listener_count, st.logo_url)
 end
 ```
 
-Each entry is `{slug, name, listener_count}` — deliberately lighter than
-`radio.status()` (no queue, no history, no current track), since this is
-meant to summarize many stations in one call rather than give a full
-picture of one. Useful for a script that drives several stations from a
+Each entry is `{slug, name, listener_count, logo_url}` — deliberately
+lighter than `radio.status()` (no queue, no history, no current track),
+since this is meant to summarize many stations in one call rather than
+give a full picture of one. Useful for a script that drives several stations from a
 shared token and wants to see the whole picture — e.g. deciding what to
 play next based on what's already playing elsewhere — without hardcoding
 every slug or polling `radio.status()` once per station.

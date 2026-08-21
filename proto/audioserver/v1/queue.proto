@@ -31,6 +31,11 @@ message TrackSource {
   string location = 2;
   string display_title = 3;
   string display_artist = 4;
+  // Optional cover art URL, carried through unchanged to
+  // QueuedItemStatus/HistoryEntryStatus/TrackStartedPayload wherever this
+  // source appears -- purely descriptive metadata, never fetched or
+  // validated by the audio server itself.
+  string cover_art_url = 5;
 }
 
 message QueueTrackRequest {
@@ -112,4 +117,59 @@ message SkipToResponse {
   // True if a currently-playing track was interrupted as a result (false
   // if the station was already playing silence with nothing to cut short).
   bool interrupted_current = 2;
+}
+
+// PauseRequest pauses the current track in place: the station falls back
+// to the silence loop, same as an empty queue, until Resume. Not
+// applicable to a live relay (no fixed position to hold) or when nothing
+// is playing.
+message PauseRequest {
+  string slug = 1;
+}
+
+message PauseResponse {
+  // False (not an error) if nothing was playing, the current track is a
+  // live relay, or it was already paused.
+  bool paused = 1;
+}
+
+// ResumeRequest resumes a paused track from exactly where it was paused.
+message ResumeRequest {
+  string slug = 1;
+}
+
+message ResumeResponse {
+  // False (not an error) if the station wasn't paused.
+  bool resumed = 1;
+}
+
+// SeekRequest jumps the current track to an absolute position, clamped to
+// [0, duration]. Works whether or not the station is currently paused --
+// seeking while paused just moves where Resume will pick up. Not
+// applicable to a live relay (no fixed position to seek within) or when
+// nothing is playing.
+message SeekRequest {
+  string slug = 1;
+  int64 position_seconds = 2;
+}
+
+message SeekResponse {
+  // False (not an error) if nothing was playing or the current track is a
+  // live relay.
+  bool seeked = 1;
+  // The resulting position after clamping. Only meaningful if seeked.
+  int64 position_seconds = 2;
+}
+
+// SeekByRequest jumps the current track by a signed delta from its
+// current position (positive = forward, negative = backward), clamped to
+// [0, duration]. See SeekRequest.
+message SeekByRequest {
+  string slug = 1;
+  int64 delta_seconds = 2;
+}
+
+message SeekByResponse {
+  bool seeked = 1;
+  int64 position_seconds = 2;
 }

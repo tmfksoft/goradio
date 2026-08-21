@@ -100,15 +100,20 @@ richer station roster (songs, idents, DJ chatter, callers, ad rotation) on
 top of, in Lua, without needing to touch Go:
 
 ```lua
-local info = radio.register(slug, name, description [, {low_queue_threshold = 3}])
-radio.queue(source, mode)      -- source: path/URL string or {type=,location=,title=,artist=}
+local info = radio.register(slug, name, description [, {low_queue_threshold = 3, logo_url = "..."}])
+radio.unregister()             -- remove this station: stops its player, disconnects listeners/events
+radio.queue(source, mode)      -- source: path/URL string or {type=,location=,title=,artist=,cover_art=}
                                 -- mode: "APPEND" (default) | "PLAY_NEXT" | "PLAY_NOW_INTERRUPT"
                                 -- an http(s):// source is auto-detected as a file or a live
                                 -- stream (e.g. Icecast) and relayed continuously if live
 radio.dequeue(queue_id)        -- remove one still-pending item
 radio.clear_queue([stop_current]) -- remove all pending items, optionally interrupt what's playing too
 radio.skip()                   -- interrupt current playback only, leaving the queue intact
-local status = radio.status()  -- includes status.queue, status.current_track, .duration_seconds/.elapsed_seconds
+radio.skip_to(queue_id)        -- jump straight to a pending item, dropping everything ahead of it
+radio.pause() / radio.resume() -- pause/resume the current track in place (silence plays meanwhile)
+radio.seek(position_seconds) / radio.seek_by(delta_seconds) -- jump the current track's position
+local status = radio.status()  -- includes status.queue, status.history, status.current_track, .duration_seconds/.elapsed_seconds
+radio.list_stations()          -- every station this token authorizes, with name/listener_count/logo_url
 radio.every(seconds, fn)
 radio.after(seconds, fn)
 radio.on_track_started(fn)

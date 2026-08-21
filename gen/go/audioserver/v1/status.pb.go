@@ -241,7 +241,13 @@ type GetStatusResponse struct {
 	// fixed count. Meant to seed a dashboard's view on first load; keep it
 	// current afterward from TRACK_ENDED events on SubscribeEvents rather
 	// than re-polling GetStatus.
-	History       []*HistoryEntryStatus `protobuf:"bytes,10,rep,name=history,proto3" json:"history,omitempty"`
+	History []*HistoryEntryStatus `protobuf:"bytes,10,rep,name=history,proto3" json:"history,omitempty"`
+	// True if current_track is paused (see Pause) -- the station is
+	// playing silence but holding current_track's position, ready to
+	// continue from current_track_elapsed_seconds on Resume.
+	IsPaused bool `protobuf:"varint,11,opt,name=is_paused,json=isPaused,proto3" json:"is_paused,omitempty"`
+	// The station's logo/artwork URL, if set (see RegisterStationRequest).
+	LogoUrl       string `protobuf:"bytes,12,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -346,6 +352,20 @@ func (x *GetStatusResponse) GetHistory() []*HistoryEntryStatus {
 	return nil
 }
 
+func (x *GetStatusResponse) GetIsPaused() bool {
+	if x != nil {
+		return x.IsPaused
+	}
+	return false
+}
+
+func (x *GetStatusResponse) GetLogoUrl() string {
+	if x != nil {
+		return x.LogoUrl
+	}
+	return ""
+}
+
 var File_audioserver_v1_status_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_status_proto_rawDesc = "" +
@@ -364,7 +384,7 @@ const file_audioserver_v1_status_proto_rawDesc = "" +
 	"\x04mode\x18\x03 \x01(\x0e2\x19.audioserver.v1.QueueModeR\x04mode\x12)\n" +
 	"\x10duration_seconds\x18\x04 \x01(\x03R\x0fdurationSeconds\x12\x16\n" +
 	"\x06reason\x18\x05 \x01(\tR\x06reason\x12'\n" +
-	"\x10ended_at_unix_ms\x18\x06 \x01(\x03R\rendedAtUnixMs\"\xcd\x03\n" +
+	"\x10ended_at_unix_ms\x18\x06 \x01(\x03R\rendedAtUnixMs\"\x85\x04\n" +
 	"\x11GetStatusResponse\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -377,7 +397,9 @@ const file_audioserver_v1_status_proto_rawDesc = "" +
 	"\x0euptime_seconds\x18\b \x01(\x03R\ruptimeSeconds\x12A\n" +
 	"\x1dcurrent_track_elapsed_seconds\x18\t \x01(\x03R\x1acurrentTrackElapsedSeconds\x12<\n" +
 	"\ahistory\x18\n" +
-	" \x03(\v2\".audioserver.v1.HistoryEntryStatusR\ahistoryBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	" \x03(\v2\".audioserver.v1.HistoryEntryStatusR\ahistory\x12\x1b\n" +
+	"\tis_paused\x18\v \x01(\bR\bisPaused\x12\x19\n" +
+	"\blogo_url\x18\f \x01(\tR\alogoUrlBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_status_proto_rawDescOnce sync.Once

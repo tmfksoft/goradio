@@ -17,8 +17,8 @@ import (
 // prefix); see HasSlug. If ReadOnly is true, that's restricted to
 // read-only calls (GetStatus, SubscribeEvents) -- every write RPC
 // (RegisterStation, UnregisterStation, QueueTrack, RemoveFromQueue,
-// ClearQueue, Skip, SkipTo) requires ReadOnly to be false; see
-// RequireWrite.
+// ClearQueue, Skip, SkipTo, Pause, Resume, Seek, SeekBy) requires
+// ReadOnly to be false; see RequireWrite.
 type Claims struct {
 	jwt.RegisteredClaims
 	Slugs    []string `json:"slugs"`

@@ -17,6 +17,12 @@ message RegisterStationRequest {
   // when to queue more. 0 (the default) disables the event. Updated in
   // place on re-registration, same as name/description.
   int32 low_queue_threshold = 4;
+  // Optional station logo/artwork URL, surfaced via GetStatus and
+  // ListStations. Updated in place on re-registration, same as
+  // name/description -- re-register with a new value (and the same
+  // name/description) to change it on the fly without disrupting
+  // playback.
+  string logo_url = 5;
 }
 
 message RegisterStationResponse {
@@ -45,6 +51,7 @@ message StationSummary {
   string slug = 1;
   string name = 2;
   int64 listener_count = 3;
+  string logo_url = 4;
 }
 
 message ListStationsResponse {

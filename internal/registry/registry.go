@@ -25,17 +25,17 @@ func New() *Registry {
 // onNew, or updates the metadata of an already-registered slug in place
 // (supporting controller reconnect/retry without disrupting playback).
 // reRegistered reports which case occurred.
-func (r *Registry) Register(slug, name, description string, lowQueueThreshold int32, onNew func(*playback.Station)) (st *playback.Station, reRegistered bool) {
+func (r *Registry) Register(slug, name, description, logoURL string, lowQueueThreshold int32, onNew func(*playback.Station)) (st *playback.Station, reRegistered bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	if existing, ok := r.stations[slug]; ok {
-		existing.SetMetadata(name, description, lowQueueThreshold)
+		existing.SetMetadata(name, description, logoURL, lowQueueThreshold)
 		return existing, true
 	}
 
 	st = playback.NewStation(slug, name, description)
-	st.SetMetadata(name, description, lowQueueThreshold)
+	st.SetMetadata(name, description, logoURL, lowQueueThreshold)
 	r.stations[slug] = st
 	if onNew != nil {
 		onNew(st)

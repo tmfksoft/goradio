@@ -60,7 +60,7 @@ func (s *Server) RegisterStation(ctx context.Context, req *audioserverv1.Registe
 		return nil, err
 	}
 
-	st, reRegistered := s.registry.Register(req.GetSlug(), req.GetName(), req.GetDescription(), req.GetLowQueueThreshold(), func(newStation *playback.Station) {
+	st, reRegistered := s.registry.Register(req.GetSlug(), req.GetName(), req.GetDescription(), req.GetLogoUrl(), req.GetLowQueueThreshold(), func(newStation *playback.Station) {
 		if s.starter != nil {
 			s.starter.StartStation(newStation)
 		}
@@ -117,6 +117,7 @@ func (s *Server) ListStations(ctx context.Context, req *audioserverv1.ListStatio
 			Slug:          st.Slug,
 			Name:          st.Name(),
 			ListenerCount: int64(st.Broadcaster.ListenerCount()),
+			LogoUrl:       st.LogoURL(),
 		})
 	}
 
@@ -268,6 +269,72 @@ func (s *Server) SkipTo(ctx context.Context, req *audioserverv1.SkipToRequest) (
 	return &audioserverv1.SkipToResponse{RemovedCount: int32(removedCount), InterruptedCurrent: interruptedCurrent}, nil
 }
 
+func (s *Server) Pause(ctx context.Context, req *audioserverv1.PauseRequest) (*audioserverv1.PauseResponse, error) {
+	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
+		return nil, err
+	}
+	if err := auth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
+
+	st, ok := s.registry.Get(req.GetSlug())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "station %q is not registered", req.GetSlug())
+	}
+
+	return &audioserverv1.PauseResponse{Paused: st.Pause()}, nil
+}
+
+func (s *Server) Resume(ctx context.Context, req *audioserverv1.ResumeRequest) (*audioserverv1.ResumeResponse, error) {
+	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
+		return nil, err
+	}
+	if err := auth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
+
+	st, ok := s.registry.Get(req.GetSlug())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "station %q is not registered", req.GetSlug())
+	}
+
+	return &audioserverv1.ResumeResponse{Resumed: st.Resume()}, nil
+}
+
+func (s *Server) Seek(ctx context.Context, req *audioserverv1.SeekRequest) (*audioserverv1.SeekResponse, error) {
+	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
+		return nil, err
+	}
+	if err := auth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
+
+	st, ok := s.registry.Get(req.GetSlug())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "station %q is not registered", req.GetSlug())
+	}
+
+	seeked, position := st.SeekPosition(req.GetPositionSeconds())
+	return &audioserverv1.SeekResponse{Seeked: seeked, PositionSeconds: position}, nil
+}
+
+func (s *Server) SeekBy(ctx context.Context, req *audioserverv1.SeekByRequest) (*audioserverv1.SeekByResponse, error) {
+	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
+		return nil, err
+	}
+	if err := auth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
+
+	st, ok := s.registry.Get(req.GetSlug())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "station %q is not registered", req.GetSlug())
+	}
+
+	seeked, position := st.SeekBy(req.GetDeltaSeconds())
+	return &audioserverv1.SeekByResponse{Seeked: seeked, PositionSeconds: position}, nil
+}
+
 func (s *Server) GetStatus(ctx context.Context, req *audioserverv1.GetStatusRequest) (*audioserverv1.GetStatusResponse, error) {
 	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
 		return nil, err
@@ -283,8 +350,10 @@ func (s *Server) GetStatus(ctx context.Context, req *audioserverv1.GetStatusRequ
 		Name:          st.Name(),
 		IsRegistered:  true,
 		IsSilence:     st.IsSilence(),
+		IsPaused:      st.IsPaused(),
 		ListenerCount: int64(st.Broadcaster.ListenerCount()),
 		UptimeSeconds: int64(st.Uptime().Seconds()),
+		LogoUrl:       st.LogoURL(),
 	}
 
 	if cur := st.Current(); cur != nil {

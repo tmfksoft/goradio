@@ -43,6 +43,10 @@ func (e *Engine) setupLuaEnvironment() {
 		"clear_queue":      e.luaClearQueue,
 		"skip":             e.luaSkip,
 		"skip_to":          e.luaSkipTo,
+		"pause":            e.luaPause,
+		"resume":           e.luaResume,
+		"seek":             e.luaSeek,
+		"seek_by":          e.luaSeekBy,
 		"status":           e.luaStatus,
 		"list_stations":    e.luaListStations,
 		"every":            e.luaEvery,
@@ -80,30 +84,38 @@ func (e *Engine) setupModuleSearchPath() {
 
 // radio.register(slug, name, description [, options]) -> {slug, stream_url, re_registered}
 //
-// options is an optional table; currently the only recognized field is
-// low_queue_threshold (number): if set > 0, the audio server fires
-// EVENT_TYPE_QUEUE_LOW (see radio.on_queue_low) once, edge-triggered,
-// whenever the pending queue length drops to or below it.
+// options is an optional table recognizing two fields: low_queue_threshold
+// (number) -- if set > 0, the audio server fires EVENT_TYPE_QUEUE_LOW (see
+// radio.on_queue_low) once, edge-triggered, whenever the pending queue
+// length drops to or below it -- and logo_url (string), an optional
+// station logo/artwork URL surfaced via radio.status()/radio.list_stations().
+//
+// Every field (including options) is fully replaced on each call, not
+// merged: to update just the logo on the fly, re-register with the same
+// slug/name/description and the new options.logo_url, same as you would
+// to change the name or description.
 func (e *Engine) luaRegister(L *lua.LState) int {
 	slug := L.CheckString(1)
 	name := L.OptString(2, slug)
 	description := L.OptString(3, "")
 
 	var lowQueueThreshold int32
+	var logoURL string
 	if L.GetTop() >= 4 {
 		if opts, ok := L.Get(4).(*lua.LTable); ok {
 			if n, ok := opts.RawGetString("low_queue_threshold").(lua.LNumber); ok {
 				lowQueueThreshold = int32(n)
 			}
+			logoURL = lua.LVAsString(opts.RawGetString("logo_url"))
 		}
 	}
 
-	resp, err := e.registerWithRetry(e.ctx, slug, name, description, lowQueueThreshold)
+	resp, err := e.registerWithRetry(e.ctx, slug, name, description, logoURL, lowQueueThreshold)
 	if err != nil {
 		L.RaiseError("radio.register failed: %v", err)
 		return 0
 	}
-	e.setRegisterInfo(slug, name, description, lowQueueThreshold)
+	e.setRegisterInfo(slug, name, description, logoURL, lowQueueThreshold)
 
 	tbl := L.NewTable()
 	tbl.RawSetString("slug", lua.LString(resp.GetSlug()))
@@ -143,8 +155,11 @@ func (e *Engine) luaUnregister(L *lua.LState) int {
 // radio.queue(source, mode) -> {queue_id, queue_position, status}
 //
 // source is either a plain string (local path, or an http(s):// URL) or a
-// table {type="local"|"url", location=..., title=..., artist=...}. mode is
-// one of "APPEND" (default), "PLAY_NEXT", "PLAY_NOW_INTERRUPT".
+// table {type="local"|"url", location=..., title=..., artist=..., cover_art=...}
+// -- title/artist/cover_art are all optional, purely descriptive metadata
+// carried through unchanged to radio.status()/radio.on_track_started/
+// radio.status().history, never fetched or validated by the audio server.
+// mode is one of "APPEND" (default), "PLAY_NEXT", "PLAY_NOW_INTERRUPT".
 func (e *Engine) luaQueue(L *lua.LState) int {
 	slug := e.getRegisteredSlug()
 	if slug == "" {
@@ -299,6 +314,114 @@ func (e *Engine) luaSkipTo(L *lua.LState) int {
 	return 2
 }
 
+// radio.pause() -> paused (bool)
+//
+// Pauses the current track in place -- the station falls back to the
+// silence loop, same as an empty queue, until radio.resume(). Returns
+// false (not an error) if nothing is playing, the current track is a
+// live stream (no fixed position to hold -- see radio.queue's note on
+// live streams), or it's already paused.
+func (e *Engine) luaPause(L *lua.LState) int {
+	slug := e.getRegisteredSlug()
+	if slug == "" {
+		L.RaiseError("radio.pause called before radio.register")
+		return 0
+	}
+
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.Pause(ctx, &audioserverv1.PauseRequest{Slug: slug})
+	if err != nil {
+		L.RaiseError("radio.pause failed: %v", err)
+		return 0
+	}
+
+	L.Push(lua.LBool(resp.GetPaused()))
+	return 1
+}
+
+// radio.resume() -> resumed (bool)
+//
+// Resumes a paused track from exactly where it was paused. Returns false
+// if the station wasn't paused.
+func (e *Engine) luaResume(L *lua.LState) int {
+	slug := e.getRegisteredSlug()
+	if slug == "" {
+		L.RaiseError("radio.resume called before radio.register")
+		return 0
+	}
+
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.Resume(ctx, &audioserverv1.ResumeRequest{Slug: slug})
+	if err != nil {
+		L.RaiseError("radio.resume failed: %v", err)
+		return 0
+	}
+
+	L.Push(lua.LBool(resp.GetResumed()))
+	return 1
+}
+
+// radio.seek(position_seconds) -> seeked (bool), position_seconds (number)
+//
+// Jumps the current track to an absolute position, clamped to
+// [0, duration]. Works whether or not the station is currently paused --
+// seeking while paused just moves where radio.resume() will pick up.
+// Returns seeked = false (not an error) if nothing seekable is playing --
+// no current track, or it's a live stream (no fixed position to seek
+// within).
+func (e *Engine) luaSeek(L *lua.LState) int {
+	slug := e.getRegisteredSlug()
+	if slug == "" {
+		L.RaiseError("radio.seek called before radio.register")
+		return 0
+	}
+	positionSeconds := int64(L.CheckNumber(1))
+
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.Seek(ctx, &audioserverv1.SeekRequest{Slug: slug, PositionSeconds: positionSeconds})
+	if err != nil {
+		L.RaiseError("radio.seek failed: %v", err)
+		return 0
+	}
+
+	L.Push(lua.LBool(resp.GetSeeked()))
+	L.Push(lua.LNumber(resp.GetPositionSeconds()))
+	return 2
+}
+
+// radio.seek_by(delta_seconds) -> seeked (bool), position_seconds (number)
+//
+// Jumps the current track by a signed delta from its current position
+// (positive = forward, negative = backward), clamped to [0, duration].
+// See radio.seek.
+func (e *Engine) luaSeekBy(L *lua.LState) int {
+	slug := e.getRegisteredSlug()
+	if slug == "" {
+		L.RaiseError("radio.seek_by called before radio.register")
+		return 0
+	}
+	deltaSeconds := int64(L.CheckNumber(1))
+
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.SeekBy(ctx, &audioserverv1.SeekByRequest{Slug: slug, DeltaSeconds: deltaSeconds})
+	if err != nil {
+		L.RaiseError("radio.seek_by failed: %v", err)
+		return 0
+	}
+
+	L.Push(lua.LBool(resp.GetSeeked()))
+	L.Push(lua.LNumber(resp.GetPositionSeconds()))
+	return 2
+}
+
 // radio.status() -> table snapshot of GetStatus
 func (e *Engine) luaStatus(L *lua.LState) int {
 	slug := e.getRegisteredSlug()
@@ -321,9 +444,11 @@ func (e *Engine) luaStatus(L *lua.LState) int {
 	tbl.RawSetString("name", lua.LString(resp.GetName()))
 	tbl.RawSetString("is_registered", lua.LBool(resp.GetIsRegistered()))
 	tbl.RawSetString("is_silence", lua.LBool(resp.GetIsSilence()))
+	tbl.RawSetString("is_paused", lua.LBool(resp.GetIsPaused()))
 	tbl.RawSetString("listener_count", lua.LNumber(resp.GetListenerCount()))
 	tbl.RawSetString("uptime_seconds", lua.LNumber(resp.GetUptimeSeconds()))
 	tbl.RawSetString("queue_length", lua.LNumber(len(resp.GetQueue())))
+	tbl.RawSetString("logo_url", lua.LString(resp.GetLogoUrl()))
 
 	if cur := resp.GetCurrentTrack(); cur != nil {
 		tbl.RawSetString("current_track", queuedItemToLua(L, cur))
@@ -346,7 +471,7 @@ func (e *Engine) luaStatus(L *lua.LState) int {
 	return 1
 }
 
-// radio.list_stations() -> array of {slug, name, listener_count}
+// radio.list_stations() -> array of {slug, name, listener_count, logo_url}
 //
 // Lists every station this token authorizes -- not every station on the
 // server, and not just this script's own. Unlike radio.status(), doesn't
@@ -368,6 +493,7 @@ func (e *Engine) luaListStations(L *lua.LState) int {
 		row.RawSetString("slug", lua.LString(st.GetSlug()))
 		row.RawSetString("name", lua.LString(st.GetName()))
 		row.RawSetString("listener_count", lua.LNumber(st.GetListenerCount()))
+		row.RawSetString("logo_url", lua.LString(st.GetLogoUrl()))
 		tbl.Append(row)
 	}
 	L.Push(tbl)
@@ -380,6 +506,7 @@ func queuedItemToLua(L *lua.LState, item *audioserverv1.QueuedItemStatus) *lua.L
 	tbl.RawSetString("location", lua.LString(item.GetSource().GetLocation()))
 	tbl.RawSetString("title", lua.LString(item.GetSource().GetDisplayTitle()))
 	tbl.RawSetString("artist", lua.LString(item.GetSource().GetDisplayArtist()))
+	tbl.RawSetString("cover_art", lua.LString(item.GetSource().GetCoverArtUrl()))
 	tbl.RawSetString("mode", lua.LString(item.GetMode().String()))
 	tbl.RawSetString("duration_seconds", lua.LNumber(item.GetDurationSeconds()))
 	return tbl
@@ -393,6 +520,7 @@ func historyEntryToLua(L *lua.LState, item *audioserverv1.HistoryEntryStatus) *l
 	tbl.RawSetString("location", lua.LString(item.GetSource().GetLocation()))
 	tbl.RawSetString("title", lua.LString(item.GetSource().GetDisplayTitle()))
 	tbl.RawSetString("artist", lua.LString(item.GetSource().GetDisplayArtist()))
+	tbl.RawSetString("cover_art", lua.LString(item.GetSource().GetCoverArtUrl()))
 	tbl.RawSetString("mode", lua.LString(item.GetMode().String()))
 	tbl.RawSetString("duration_seconds", lua.LNumber(item.GetDurationSeconds()))
 	tbl.RawSetString("reason", lua.LString(item.GetReason()))
@@ -464,6 +592,7 @@ func parseTrackSource(v lua.LValue) (*audioserverv1.TrackSource, error) {
 			Location:      location,
 			DisplayTitle:  lua.LVAsString(val.RawGetString("title")),
 			DisplayArtist: lua.LVAsString(val.RawGetString("artist")),
+			CoverArtUrl:   lua.LVAsString(val.RawGetString("cover_art")),
 		}, nil
 
 	default:
