@@ -28,6 +28,13 @@ logging:
 |---|---|---|
 | `grpc_addr` | `localhost:9090` | The audio server's gRPC address |
 
+`grpc_addr` accepts either a bare `host:port` (dialed in plaintext — the
+default, for talking directly to `radio serve`'s gRPC port) or a URL with a
+scheme, for talking to a TLS-terminating reverse proxy in front of it:
+`https://`/`grpcs://` dial with TLS (defaulting to port 443 if none is
+given), `http://`/`grpc://` dial in plaintext (defaulting to port 80). E.g.
+`grpc_addr: "https://radio-rpc.example.com"`.
+
 ## `auth`
 
 | Field | Default | Description |

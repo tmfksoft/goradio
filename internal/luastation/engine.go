@@ -11,14 +11,18 @@ package luastation
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log/slog"
+	"net"
+	"strings"
 	"sync"
 	"time"
 
 	lua "github.com/yuin/gopher-lua"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 
@@ -136,9 +140,16 @@ func (e *Engine) Run(ctx context.Context) error {
 }
 
 func (e *Engine) connect() error {
+	target, useTLS := parseGRPCTarget(e.cfg.Server.GRPCAddr)
+
+	var creds credentials.TransportCredentials = insecure.NewCredentials()
+	if useTLS {
+		creds = credentials.NewTLS(&tls.Config{})
+	}
+
 	conn, err := grpc.NewClient(
-		e.cfg.Server.GRPCAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		target,
+		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(jwtCreds{token: e.cfg.Auth.JWT}),
 	)
 	if err != nil {
@@ -147,6 +158,40 @@ func (e *Engine) connect() error {
 	e.conn = conn
 	e.client = audioserverv1.NewAudioServerServiceClient(conn)
 	return nil
+}
+
+// parseGRPCTarget turns a configured grpc_addr into a grpc.NewClient target
+// plus whether to dial with TLS. grpc's own target parsing treats
+// "scheme://" as one of its resolver schemes (dns, passthrough, unix, ...)
+// -- "https"/"http" aren't among them, so a URL-shaped address like
+// "https://host.example.com" (the natural way to point at a server sitting
+// behind a TLS-terminating reverse proxy) would otherwise fail to resolve
+// at all. A bare "host:port" with no scheme is passed through unchanged and
+// dialed in plaintext, preserving the existing default ("localhost:9090").
+func parseGRPCTarget(addr string) (target string, useTLS bool) {
+	scheme, rest, hasScheme := strings.Cut(addr, "://")
+	if !hasScheme {
+		return addr, false
+	}
+
+	defaultPort := "80"
+	switch scheme {
+	case "https", "grpcs":
+		useTLS = true
+		defaultPort = "443"
+	case "http", "grpc":
+		useTLS = false
+	default:
+		// Unrecognized scheme -- pass the original string through
+		// unchanged and let grpc's own target parsing surface an error
+		// rather than guessing.
+		return addr, false
+	}
+
+	if _, _, err := net.SplitHostPort(rest); err != nil {
+		rest = net.JoinHostPort(rest, defaultPort)
+	}
+	return rest, useTLS
 }
 
 func (e *Engine) setRegisterInfo(slug, name, description string, lowQueueThreshold int32) {

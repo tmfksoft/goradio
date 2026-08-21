@@ -67,6 +67,9 @@ GoRadio is still early. Worth knowing before you rely on it:
 
 - Hard cut only — no crossfade yet (the `Transition` field is reserved for it).
 - No ICY mid-stream metadata (song titles) — headers only.
-- No TLS on the gRPC transport this phase (plaintext + JWT auth).
+- No TLS listener built into `radio serve` itself — it always speaks
+  plaintext gRPC (+ JWT auth). `radio station`'s `grpc_addr` can point at
+  an `https://`/`grpcs://` TLS-terminating reverse proxy in front of it
+  instead — see [Station configuration](configuration/station-config.md#server).
 - No bundled genre-specific content logic (songs/idents/DJ chatter/callers/adverts)
   yet — `radio station` gives you the primitives to build that yourself in Lua today.

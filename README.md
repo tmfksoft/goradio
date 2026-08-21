@@ -161,7 +161,7 @@ plugins.
    buf generate proto.prod.wtf/tmfksoft/goradio
    ```
 3. Implement a client against the generated `AudioServerService` stub:
-   - Dial the audio server's gRPC address (plaintext this phase — no TLS, see Known gaps below).
+   - Dial the audio server's gRPC address — plaintext, unless it's fronted by a TLS-terminating reverse proxy (see Known gaps below).
    - Attach `authorization: Bearer <jwt>` as gRPC metadata on every call (mint a token with `radio tokengen`).
    - Call `RegisterStation` once, then `QueueTrack` to queue playback, `GetStatus` for an on-demand snapshot, and open the `SubscribeEvents` server-streaming call to receive `TRACK_STARTED`/`TRACK_ENDED`/`QUEUE_UPDATED`/`ERROR`/etc. events in real time.
 
@@ -194,6 +194,9 @@ make proto-push    # requires: buf registry login proto.prod.wtf
   observers (dashboards, bots) you don't want able to touch playback. Not
   usable for `radio station` itself, since it always registers on startup.
 - Known gaps: no crossfade (hard cut only), no ICY mid-stream metadata, no
-  TLS on the gRPC transport, no bundled genre-specific content logic
-  (songs/idents/DJ chatter/callers/adverts) yet — build that in Lua on top
-  of the primitives above.
+  TLS listener built into `radio serve` itself (it always speaks plaintext
+  gRPC — `radio station`'s `grpc_addr` can point at an `https://`/`grpcs://`
+  TLS-terminating reverse proxy in front of it instead, see
+  [Station configuration](https://tmfksoft.github.io/goradio/configuration/station-config/#server)),
+  no bundled genre-specific content logic (songs/idents/DJ chatter/callers/
+  adverts) yet — build that in Lua on top of the primitives above.
