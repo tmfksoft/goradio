@@ -12,6 +12,7 @@ option go_package = "github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserv
 service AudioServerService {
   rpc RegisterStation(RegisterStationRequest) returns (RegisterStationResponse);
   rpc UnregisterStation(UnregisterStationRequest) returns (UnregisterStationResponse);
+  rpc ListStations(ListStationsRequest) returns (ListStationsResponse);
   rpc QueueTrack(QueueTrackRequest) returns (QueueTrackResponse);
   rpc RemoveFromQueue(RemoveFromQueueRequest) returns (RemoveFromQueueResponse);
   rpc ClearQueue(ClearQueueRequest) returns (ClearQueueResponse);

@@ -44,6 +44,7 @@ func (e *Engine) setupLuaEnvironment() {
 		"skip":             e.luaSkip,
 		"skip_to":          e.luaSkipTo,
 		"status":           e.luaStatus,
+		"list_stations":    e.luaListStations,
 		"every":            e.luaEvery,
 		"after":            e.luaAfter,
 		"on_track_started": e.luaOnTrackStarted,
@@ -341,6 +342,34 @@ func (e *Engine) luaStatus(L *lua.LState) int {
 	}
 	tbl.RawSetString("history", historyTbl)
 
+	L.Push(tbl)
+	return 1
+}
+
+// radio.list_stations() -> array of {slug, name, listener_count}
+//
+// Lists every station this token authorizes -- not every station on the
+// server, and not just this script's own. Unlike radio.status(), doesn't
+// require radio.register() to have been called first, since it isn't
+// scoped to "this" station at all.
+func (e *Engine) luaListStations(L *lua.LState) int {
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.ListStations(ctx, &audioserverv1.ListStationsRequest{})
+	if err != nil {
+		L.RaiseError("radio.list_stations failed: %v", err)
+		return 0
+	}
+
+	tbl := L.NewTable()
+	for _, st := range resp.GetStations() {
+		row := L.NewTable()
+		row.RawSetString("slug", lua.LString(st.GetSlug()))
+		row.RawSetString("name", lua.LString(st.GetName()))
+		row.RawSetString("listener_count", lua.LNumber(st.GetListenerCount()))
+		tbl.Append(row)
+	}
 	L.Push(tbl)
 	return 1
 }

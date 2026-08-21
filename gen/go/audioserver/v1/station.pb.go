@@ -242,6 +242,151 @@ func (*UnregisterStationResponse) Descriptor() ([]byte, []int) {
 	return file_audioserver_v1_station_proto_rawDescGZIP(), []int{3}
 }
 
+type ListStationsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStationsRequest) Reset() {
+	*x = ListStationsRequest{}
+	mi := &file_audioserver_v1_station_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStationsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStationsRequest) ProtoMessage() {}
+
+func (x *ListStationsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_station_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStationsRequest.ProtoReflect.Descriptor instead.
+func (*ListStationsRequest) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_station_proto_rawDescGZIP(), []int{4}
+}
+
+// StationSummary is the per-station listing returned by ListStations --
+// deliberately lighter than GetStatusResponse (no queue/history), since
+// this returns every station the caller is authorized for in one call.
+type StationSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	ListenerCount int64                  `protobuf:"varint,3,opt,name=listener_count,json=listenerCount,proto3" json:"listener_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StationSummary) Reset() {
+	*x = StationSummary{}
+	mi := &file_audioserver_v1_station_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StationSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StationSummary) ProtoMessage() {}
+
+func (x *StationSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_station_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StationSummary.ProtoReflect.Descriptor instead.
+func (*StationSummary) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_station_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *StationSummary) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *StationSummary) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *StationSummary) GetListenerCount() int64 {
+	if x != nil {
+		return x.ListenerCount
+	}
+	return 0
+}
+
+type ListStationsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Only stations the caller's token authorizes (see Claims.HasSlug) --
+	// never every registered station regardless of token scope.
+	Stations      []*StationSummary `protobuf:"bytes,1,rep,name=stations,proto3" json:"stations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStationsResponse) Reset() {
+	*x = ListStationsResponse{}
+	mi := &file_audioserver_v1_station_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStationsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStationsResponse) ProtoMessage() {}
+
+func (x *ListStationsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_station_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStationsResponse.ProtoReflect.Descriptor instead.
+func (*ListStationsResponse) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_station_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListStationsResponse) GetStations() []*StationSummary {
+	if x != nil {
+		return x.Stations
+	}
+	return nil
+}
+
 var File_audioserver_v1_station_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_station_proto_rawDesc = "" +
@@ -259,7 +404,14 @@ const file_audioserver_v1_station_proto_rawDesc = "" +
 	"\rre_registered\x18\x03 \x01(\bR\freRegistered\".\n" +
 	"\x18UnregisterStationRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\"\x1b\n" +
-	"\x19UnregisterStationResponseBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\x19UnregisterStationResponse\"\x15\n" +
+	"\x13ListStationsRequest\"_\n" +
+	"\x0eStationSummary\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
+	"\x0elistener_count\x18\x03 \x01(\x03R\rlistenerCount\"R\n" +
+	"\x14ListStationsResponse\x12:\n" +
+	"\bstations\x18\x01 \x03(\v2\x1e.audioserver.v1.StationSummaryR\bstationsBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_station_proto_rawDescOnce sync.Once
@@ -273,19 +425,23 @@ func file_audioserver_v1_station_proto_rawDescGZIP() []byte {
 	return file_audioserver_v1_station_proto_rawDescData
 }
 
-var file_audioserver_v1_station_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_audioserver_v1_station_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_audioserver_v1_station_proto_goTypes = []any{
 	(*RegisterStationRequest)(nil),    // 0: audioserver.v1.RegisterStationRequest
 	(*RegisterStationResponse)(nil),   // 1: audioserver.v1.RegisterStationResponse
 	(*UnregisterStationRequest)(nil),  // 2: audioserver.v1.UnregisterStationRequest
 	(*UnregisterStationResponse)(nil), // 3: audioserver.v1.UnregisterStationResponse
+	(*ListStationsRequest)(nil),       // 4: audioserver.v1.ListStationsRequest
+	(*StationSummary)(nil),            // 5: audioserver.v1.StationSummary
+	(*ListStationsResponse)(nil),      // 6: audioserver.v1.ListStationsResponse
 }
 var file_audioserver_v1_station_proto_depIdxs = []int32{
-	0, // [0:0] is the sub-list for method output_type
-	0, // [0:0] is the sub-list for method input_type
-	0, // [0:0] is the sub-list for extension type_name
-	0, // [0:0] is the sub-list for extension extendee
-	0, // [0:0] is the sub-list for field type_name
+	5, // 0: audioserver.v1.ListStationsResponse.stations:type_name -> audioserver.v1.StationSummary
+	1, // [1:1] is the sub-list for method output_type
+	1, // [1:1] is the sub-list for method input_type
+	1, // [1:1] is the sub-list for extension type_name
+	1, // [1:1] is the sub-list for extension extendee
+	0, // [0:1] is the sub-list for field type_name
 }
 
 func init() { file_audioserver_v1_station_proto_init() }
@@ -299,7 +455,7 @@ func file_audioserver_v1_station_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audioserver_v1_station_proto_rawDesc), len(file_audioserver_v1_station_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   7,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

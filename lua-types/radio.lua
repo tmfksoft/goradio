@@ -71,6 +71,11 @@
 ---@field queue_length integer
 ---@field threshold integer
 
+---@class RadioStationSummary
+---@field slug string
+---@field name string
+---@field listener_count integer
+
 ---@class radiolib
 ---@field args string[] # CLI args after --config/--script, e.g. {"myfm", "My FM"}
 radio = {}
@@ -146,6 +151,12 @@ function radio.skip_to(queue_id) end
 --- An on-demand snapshot of the registered station's current state.
 ---@return RadioStatus
 function radio.status() end
+
+--- Lists every station this token authorizes -- not every station on the
+--- server, and not just this script's own. Doesn't require radio.register()
+--- to have been called first.
+---@return RadioStationSummary[]
+function radio.list_stations() end
 
 --- Calls fn repeatedly, once every `seconds`.
 ---@param seconds number

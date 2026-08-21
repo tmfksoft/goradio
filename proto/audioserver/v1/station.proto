@@ -35,3 +35,20 @@ message UnregisterStationRequest {
 }
 
 message UnregisterStationResponse {}
+
+message ListStationsRequest {}
+
+// StationSummary is the per-station listing returned by ListStations --
+// deliberately lighter than GetStatusResponse (no queue/history), since
+// this returns every station the caller is authorized for in one call.
+message StationSummary {
+  string slug = 1;
+  string name = 2;
+  int64 listener_count = 3;
+}
+
+message ListStationsResponse {
+  // Only stations the caller's token authorizes (see Claims.HasSlug) --
+  // never every registered station regardless of token scope.
+  repeated StationSummary stations = 1;
+}

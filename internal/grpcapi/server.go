@@ -97,6 +97,32 @@ func (s *Server) UnregisterStation(ctx context.Context, req *audioserverv1.Unreg
 	return &audioserverv1.UnregisterStationResponse{}, nil
 }
 
+// ListStations returns every registered station the caller's token
+// authorizes (per Claims.HasSlug), each with its current listener count.
+// Unlike GetStatus it takes no slug -- auth.RequireSlug doesn't apply to a
+// single station here, so unauthorized stations are silently filtered out
+// of the result rather than the call being rejected outright.
+func (s *Server) ListStations(ctx context.Context, req *audioserverv1.ListStationsRequest) (*audioserverv1.ListStationsResponse, error) {
+	claims, ok := auth.FromContext(ctx)
+	if !ok {
+		return nil, status.Error(codes.Unauthenticated, "no claims in context")
+	}
+
+	resp := &audioserverv1.ListStationsResponse{}
+	for _, st := range s.registry.List() {
+		if !claims.HasSlug(st.Slug) {
+			continue
+		}
+		resp.Stations = append(resp.Stations, &audioserverv1.StationSummary{
+			Slug:          st.Slug,
+			Name:          st.Name(),
+			ListenerCount: int64(st.Broadcaster.ListenerCount()),
+		})
+	}
+
+	return resp, nil
+}
+
 func (s *Server) QueueTrack(ctx context.Context, req *audioserverv1.QueueTrackRequest) (*audioserverv1.QueueTrackResponse, error) {
 	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
 		return nil, err

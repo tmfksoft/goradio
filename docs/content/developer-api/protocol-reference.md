@@ -7,6 +7,7 @@ Full source: [`proto/audioserver/v1`](https://github.com/tmfksoft/goradio/tree/m
 service AudioServerService {
   rpc RegisterStation(RegisterStationRequest) returns (RegisterStationResponse);
   rpc UnregisterStation(UnregisterStationRequest) returns (UnregisterStationResponse);
+  rpc ListStations(ListStationsRequest) returns (ListStationsResponse);
   rpc QueueTrack(QueueTrackRequest) returns (QueueTrackResponse);
   rpc RemoveFromQueue(RemoveFromQueueRequest) returns (RemoveFromQueueResponse);
   rpc ClearQueue(ClearQueueRequest) returns (ClearQueueResponse);
@@ -17,7 +18,7 @@ service AudioServerService {
 }
 ```
 
-Nine RPCs: eight unary commands, one server-streaming feed of events. There
+Ten RPCs: nine unary commands, one server-streaming feed of events. There
 is no bidirectional streaming — commands are always plain request/response.
 
 ## Authentication
@@ -40,6 +41,9 @@ The server verifies the signature against its configured `auth.jwt_secret`,
 then checks that **the slug the specific call targets** is present in
 `slugs` — a token scoped to `myfm` gets `PermissionDenied` on any call made
 against `otherfm`, even if both stations exist on the same server.
+`ListStations` is the one exception, since it doesn't target a single
+slug: it never errors on scope, it just silently omits any registered
+station not in `slugs` from the result.
 
 Entries in `slugs` may be glob patterns instead of exact slugs (matched with
 Go's `path/filepath.Match`): `"*"` authorizes every station on the server —
@@ -116,6 +120,34 @@ disconnects every listener currently on `/stream/{slug}` and every open
 `SubscribeEvents` stream for it. `NotFound` if `slug` isn't registered.
 This does not persist anywhere — re-`RegisterStation`ing the same slug
 afterward starts a fresh station with an empty queue, not a resumed one.
+
+## ListStations
+
+```proto
+message ListStationsRequest {}
+
+message StationSummary {
+  string slug = 1;
+  string name = 2;
+  int64 listener_count = 3;
+}
+
+message ListStationsResponse {
+  repeated StationSummary stations = 1;
+}
+```
+
+Lists every currently registered station **the caller's token authorizes**
+— not every station on the server — each with its live `listener_count`
+(the same figure `GetStatus` reports). A token scoped to `"*"` sees
+everything; one scoped to `myfm` sees only `myfm`, even if `otherfm` is
+also registered. This is the call behind a management dashboard's station
+list: one round trip instead of a `GetStatus` per known slug, and it works
+even when the caller doesn't already know every slug in play.
+
+Deliberately lighter than `GetStatus` — no queue, no history, no current
+track — since it's meant to summarize many stations at once rather than
+give a full picture of one.
 
 ## QueueTrack
 

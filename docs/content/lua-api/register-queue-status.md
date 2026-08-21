@@ -270,3 +270,27 @@ before a restart) — use [`radio.on_track_started`/`radio.on_track_ended`](even
 to keep your own view of `queue`/`history` current after that without
 polling, or [`radio.on_queue_low`](events-and-scheduling.md#radioon_queue_lowfn)
 if all you need is "tell me when to queue more."
+
+## `radio.list_stations()`
+
+Lists every station **this token authorizes** — not every station on the
+server, and not just this script's own. Doesn't require `radio.register()`
+to have been called first, since it isn't scoped to "this" station at all.
+
+```lua
+for _, st in ipairs(radio.list_stations()) do
+  print(st.slug, st.name, st.listener_count)
+end
+```
+
+Each entry is `{slug, name, listener_count}` — deliberately lighter than
+`radio.status()` (no queue, no history, no current track), since this is
+meant to summarize many stations in one call rather than give a full
+picture of one. Useful for a script that drives several stations from a
+shared token and wants to see the whole picture — e.g. deciding what to
+play next based on what's already playing elsewhere — without hardcoding
+every slug or polling `radio.status()` once per station.
+
+A token scoped to a single slug only ever sees that one slug here; this
+never raises an error for a slug outside the token's scope, it's just
+omitted from the result.
