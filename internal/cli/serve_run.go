@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 
 	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
 	"github.com/tmfksoft/goradio/internal/audiosource"
@@ -85,6 +86,23 @@ func runServe(log *slog.Logger, cfg *config.AudioServerConfig) error {
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(auth.UnaryServerInterceptor([]byte(cfg.Auth.JWTSecret))),
 		grpc.StreamInterceptor(auth.StreamServerInterceptor([]byte(cfg.Auth.JWTSecret))),
+		// Matches the station/panel clients' own keepalive.ClientParameters:
+		// PermitWithoutStream must be true here too, or the server tears
+		// down a client's ping-only connection (no active RPC) as
+		// "too_many_pings" -- the opposite of what the client's keepalive
+		// is trying to achieve. MinTime <= the clients' Time (20s) so a
+		// well-behaved client's pings are never rejected as too frequent.
+		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
+			MinTime:             15 * time.Second,
+			PermitWithoutStream: true,
+		}),
+		// The server's own probes, so it notices a silently-dead client
+		// connection (one it's not actively streaming to) instead of
+		// holding the goroutine/resources open indefinitely.
+		grpc.KeepaliveParams(keepalive.ServerParameters{
+			Time:    30 * time.Second,
+			Timeout: 10 * time.Second,
+		}),
 	)
 	api := grpcapi.NewServer(log, reg, pool, starter, cfg.HTTP.PublicBaseURL)
 	audioserverv1.RegisterAudioServerServiceServer(grpcServer, api)

@@ -24,6 +24,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 
 	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
@@ -158,6 +159,21 @@ func (e *Engine) connect() error {
 		target,
 		grpc.WithTransportCredentials(creds),
 		grpc.WithPerRPCCredentials(jwtCreds{token: e.cfg.Auth.JWT}),
+		// Without this, a connection that goes silently dead -- a NAT/LB
+		// idle timeout, a network partition, anything that doesn't cleanly
+		// FIN/RST both ends -- is never detected by the transport: Recv()
+		// on the SubscribeEvents stream just blocks forever, so the
+		// reconnect-with-backoff logic below (which is otherwise correct)
+		// never gets a chance to run. PermitWithoutStream matters because
+		// the connection can sit idle with zero active RPCs between a
+		// registerWithRetry backoff sleep and the next attempt -- the
+		// server side needs a matching KeepaliveEnforcementPolicy or these
+		// pings just get the connection torn down for the opposite reason.
+		grpc.WithKeepaliveParams(keepalive.ClientParameters{
+			Time:                20 * time.Second,
+			Timeout:             10 * time.Second,
+			PermitWithoutStream: true,
+		}),
 	)
 	if err != nil {
 		return fmt.Errorf("dial audio server %q: %w", e.cfg.Server.GRPCAddr, err)
