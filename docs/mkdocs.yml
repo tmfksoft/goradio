@@ -72,12 +72,15 @@ nav:
   - Configuration:
       - Audio server (server.yaml): configuration/server-config.md
       - Station controller (station.yaml): configuration/station-config.md
+  - Deployment:
+      - Docker & Kubernetes: deployment/docker.md
   - Lua Scripting API:
       - Overview: lua-api/index.md
       - Registering & Queueing: lua-api/register-queue-status.md
       - Events & Scheduling: lua-api/events-and-scheduling.md
       - HTTP & SQL Modules: lua-api/http-and-sql-modules.md
       - Redis Module: lua-api/redis-module.md
+      - io / os / require, JSON & YAML: lua-api/io-os-require-json-yaml.md
       - Editor Support (VS Code): lua-api/editor-support.md
   - Developer / Protocol API:
       - Overview: developer-api/index.md

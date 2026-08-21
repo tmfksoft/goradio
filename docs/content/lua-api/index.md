@@ -2,8 +2,8 @@
 
 Every `radio station` process runs one Lua script (via
 [gopher-lua](https://github.com/yuin/gopher-lua), a pure-Go Lua 5.1 VM) on
-a single dedicated goroutine, with a global `radio` table plus two extra
-modules pre-registered:
+a single dedicated goroutine, with a global `radio` table plus the full Lua
+standard library and a few extra modules pre-registered:
 
 ```lua
 radio.args               -- CLI passthrough args, see below
@@ -22,6 +22,10 @@ radio.on_queue_low(fn)
 local http  = require("http")   -- full, unrestricted HTTP client
 local sql   = require("sql")    -- full MySQL access via database/sql
 local redis = require("redis")  -- full Redis access: KV, lists, pub/sub
+local json  = require("json")   -- JSON decode/encode
+local yaml  = require("yaml")   -- YAML decode/encode
+
+io.open(...)   -- stock Lua io/os/require, full stdlib -- see below
 ```
 
 This is deliberately minimal — enough to register a station, queue tracks,
@@ -52,6 +56,7 @@ print(radio.args[2])  --> "My FM"
 - [Events & Scheduling](events-and-scheduling.md) — `radio.every`, `radio.after`, `radio.on_*`
 - [HTTP & SQL Modules](http-and-sql-modules.md) — `require("http")`, `require("sql")`
 - [Redis Module](redis-module.md) — `require("redis")`, including a listener request-system pattern
+- [io / os / require, JSON & YAML](io-os-require-json-yaml.md) — the full Lua stdlib, splitting a script across files, and `require("json")`/`require("yaml")`
 - [Editor Support (VS Code)](editor-support.md) — autocomplete/type-checking for all of the above via LuaLS
 
 Or read [`testdata/station-scripts/example.lua`](https://github.com/tmfksoft/goradio/blob/main/testdata/station-scripts/example.lua)

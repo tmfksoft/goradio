@@ -3,6 +3,7 @@ package luastation
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,9 +15,17 @@ import (
 // setupLuaEnvironment installs the `radio` global table (deliberately
 // minimal this phase: register/queue/status/scheduling/event callbacks —
 // richer, genre-specific queue helpers are future work, built in Lua on
-// top of these primitives) plus the http and sql modules.
+// top of these primitives) plus the http/sql/redis/json/yaml modules.
+//
+// gopher-lua opens the full Lua 5.1 stdlib by default (io, os, require,
+// coroutines, ...) -- nothing here restricts that, matching the "full
+// trusted access" decision already made for http/sql/redis: station
+// authors are trusted operators, not sandboxed third parties. That
+// includes os.execute/io.popen (arbitrary shell access) -- see the docs.
 func (e *Engine) setupLuaEnvironment() {
 	L := e.L
+
+	e.setupModuleSearchPath()
 
 	radioTable := L.NewTable()
 
@@ -46,6 +55,24 @@ func (e *Engine) setupLuaEnvironment() {
 	e.RegisterHTTPModule(L)
 	e.RegisterSQLModule(L)
 	e.RegisterRedisModule(L)
+	RegisterJSONModule(L)
+	RegisterYAMLModule(L)
+}
+
+// setupModuleSearchPath prepends the running script's own directory to
+// package.path, so require("mymodule") finds mymodule.lua next to the
+// script regardless of the process's working directory -- gopher-lua's
+// default ("./?.lua;...") is relative to the cwd, which would silently
+// break depending on where `radio station` happens to be launched from.
+// The stdlib defaults stay in the path too, just after it.
+func (e *Engine) setupModuleSearchPath() {
+	pkg, ok := e.L.GetGlobal("package").(*lua.LTable)
+	if !ok {
+		return
+	}
+	scriptDir := filepath.Dir(e.scriptPath)
+	existing := lua.LVAsString(pkg.RawGetString("path"))
+	pkg.RawSetString("path", lua.LString(fmt.Sprintf("%s/?.lua;%s/?/init.lua;%s", scriptDir, scriptDir, existing)))
 }
 
 // radio.register(slug, name, description [, options]) -> {slug, stream_url, re_registered}

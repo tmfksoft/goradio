@@ -1,7 +1,7 @@
 # Editor Support (VS Code)
 
 Station scripts get real autocomplete, hover docs, and type-checking for
-the `radio` global and the `http`/`sql`/`redis` modules — via
+the `radio` global and the `http`/`sql`/`redis`/`json`/`yaml` modules — via
 [LuaLS](https://github.com/LuaLS/lua-language-server) (the **Lua**
 extension, published as `sumneko.lua`) and a set of type-stub files
 shipped in this repo (and in every [release archive](../getting-started/installation.md#or-pre-built-binaries)).
@@ -48,6 +48,8 @@ them). Each one mirrors the real Go implementation:
 | `lua-types/http.lua` | `internal/luastation/httpmodule.go` |
 | `lua-types/sql.lua` | `internal/luastation/sqlmodule.go` |
 | `lua-types/redis.lua` | `internal/luastation/redismodule.go` |
+| `lua-types/json.lua` | `internal/luastation/jsonmodule.go` |
+| `lua-types/yaml.lua` | `internal/luastation/yamlmodule.go` |
 
 If you're contributing a change to the Lua API surface (a new `radio.*`
 function, a new module method), update the matching stub in the same

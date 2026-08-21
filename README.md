@@ -58,6 +58,20 @@ make release              # -> dist/release/goradio-dev-{linux,windows}-amd64.{t
 make release VERSION=v0.1.0
 ```
 
+## Container image
+
+Same tagged releases also publish a container image (one image, both
+roles — pick `serve` or `station` via the command) via
+`.github/workflows/docker.yml`:
+
+```sh
+docker run ghcr.io/tmfksoft/goradio:latest serve --config /app/server.yaml
+```
+
+See [Docker & Kubernetes](https://tmfksoft.github.io/goradio/deployment/docker/)
+for volume mounts, permissions (the image runs as a fixed non-root
+`uid 1000`), and a Kubernetes example.
+
 ## Quickstart
 
 ```sh
@@ -106,6 +120,13 @@ radio.args                     -- array of CLI args after --config/--script
 local http  = require("http")   -- full, unrestricted HTTP client
 local sql   = require("sql")    -- full MySQL access via database/sql
 local redis = require("redis")  -- full Redis access: KV, lists, pub/sub
+local json  = require("json")   -- JSON decode/encode
+local yaml  = require("yaml")   -- YAML decode/encode
+
+io.open(...)  -- full Lua stdlib is open too: io, os, require/package,
+              -- coroutines -- require() resolves relative to the script's
+              -- own directory, so you can split one station across
+              -- multiple .lua files
 ```
 
 See `testdata/station-scripts/example.lua` for a working reference script,
