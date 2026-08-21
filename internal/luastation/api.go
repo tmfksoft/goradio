@@ -84,16 +84,24 @@ func (e *Engine) setupModuleSearchPath() {
 
 // radio.register(slug, name, description [, options]) -> {slug, stream_url, re_registered}
 //
-// options is an optional table recognizing two fields: low_queue_threshold
-// (number) -- if set > 0, the audio server fires EVENT_TYPE_QUEUE_LOW (see
-// radio.on_queue_low) once, edge-triggered, whenever the pending queue
-// length drops to or below it -- and logo_url (string), an optional
-// station logo/artwork URL surfaced via radio.status()/radio.list_stations().
+// options is an optional table recognizing three fields:
+//   - low_queue_threshold (number) -- if set > 0, the audio server fires
+//     EVENT_TYPE_QUEUE_LOW (see radio.on_queue_low) once, edge-triggered,
+//     whenever the pending queue length drops to or below it.
+//   - logo_url (string) -- an optional station logo/artwork URL surfaced
+//     via radio.status()/radio.list_stations().
+//   - metadata (table<string, string>) -- freeform key/value data (e.g. a
+//     group name to cluster stations in a dashboard). The audio server
+//     never interprets these keys itself; it just stores and returns
+//     them via radio.status()/radio.list_stations() for the
+//     controller/player to use however it wants. Non-string keys/values
+//     are silently dropped.
 //
 // Every field (including options) is fully replaced on each call, not
-// merged: to update just the logo on the fly, re-register with the same
-// slug/name/description and the new options.logo_url, same as you would
-// to change the name or description.
+// merged: to update just the logo (or metadata) on the fly, re-register
+// with the same slug/name/description and the new options, same as you
+// would to change the name or description -- omitting options.metadata
+// on a later call clears any previously set metadata.
 func (e *Engine) luaRegister(L *lua.LState) int {
 	slug := L.CheckString(1)
 	name := L.OptString(2, slug)
@@ -101,21 +109,25 @@ func (e *Engine) luaRegister(L *lua.LState) int {
 
 	var lowQueueThreshold int32
 	var logoURL string
+	var metadata map[string]string
 	if L.GetTop() >= 4 {
 		if opts, ok := L.Get(4).(*lua.LTable); ok {
 			if n, ok := opts.RawGetString("low_queue_threshold").(lua.LNumber); ok {
 				lowQueueThreshold = int32(n)
 			}
 			logoURL = lua.LVAsString(opts.RawGetString("logo_url"))
+			if md, ok := opts.RawGetString("metadata").(*lua.LTable); ok {
+				metadata = luaTableToStringMap(md)
+			}
 		}
 	}
 
-	resp, err := e.registerWithRetry(e.ctx, slug, name, description, logoURL, lowQueueThreshold)
+	resp, err := e.registerWithRetry(e.ctx, slug, name, description, logoURL, metadata, lowQueueThreshold)
 	if err != nil {
 		L.RaiseError("radio.register failed: %v", err)
 		return 0
 	}
-	e.setRegisterInfo(slug, name, description, logoURL, lowQueueThreshold)
+	e.setRegisterInfo(slug, name, description, logoURL, metadata, lowQueueThreshold)
 
 	tbl := L.NewTable()
 	tbl.RawSetString("slug", lua.LString(resp.GetSlug()))
@@ -449,6 +461,7 @@ func (e *Engine) luaStatus(L *lua.LState) int {
 	tbl.RawSetString("uptime_seconds", lua.LNumber(resp.GetUptimeSeconds()))
 	tbl.RawSetString("queue_length", lua.LNumber(len(resp.GetQueue())))
 	tbl.RawSetString("logo_url", lua.LString(resp.GetLogoUrl()))
+	tbl.RawSetString("metadata", stringMapToLuaTable(L, resp.GetMetadata()))
 
 	if cur := resp.GetCurrentTrack(); cur != nil {
 		tbl.RawSetString("current_track", queuedItemToLua(L, cur))
@@ -471,7 +484,7 @@ func (e *Engine) luaStatus(L *lua.LState) int {
 	return 1
 }
 
-// radio.list_stations() -> array of {slug, name, listener_count, logo_url}
+// radio.list_stations() -> array of {slug, name, listener_count, logo_url, metadata}
 //
 // Lists every station this token authorizes -- not every station on the
 // server, and not just this script's own. Unlike radio.status(), doesn't
@@ -494,6 +507,7 @@ func (e *Engine) luaListStations(L *lua.LState) int {
 		row.RawSetString("name", lua.LString(st.GetName()))
 		row.RawSetString("listener_count", lua.LNumber(st.GetListenerCount()))
 		row.RawSetString("logo_url", lua.LString(st.GetLogoUrl()))
+		row.RawSetString("metadata", stringMapToLuaTable(L, st.GetMetadata()))
 		tbl.Append(row)
 	}
 	L.Push(tbl)
@@ -566,6 +580,39 @@ func (e *Engine) luaOnError(L *lua.LState) int {
 func (e *Engine) luaOnQueueLow(L *lua.LState) int {
 	e.onQueueLow = L.CheckFunction(1)
 	return 0
+}
+
+// luaTableToStringMap converts a Lua table into a map[string]string,
+// silently dropping any entry whose key isn't a string (values are
+// coerced via lua.LVAsString, same as every other string field read from
+// a Lua table elsewhere in this file). Returns nil for an empty/nil
+// table, matching RegisterStationRequest.metadata's "unset" wire value.
+func luaTableToStringMap(tbl *lua.LTable) map[string]string {
+	if tbl == nil {
+		return nil
+	}
+	out := make(map[string]string)
+	tbl.ForEach(func(k, v lua.LValue) {
+		key, ok := k.(lua.LString)
+		if !ok {
+			return
+		}
+		out[string(key)] = lua.LVAsString(v)
+	})
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+// stringMapToLuaTable is luaTableToStringMap's inverse, for surfacing a
+// station's metadata back to Lua via radio.status()/radio.list_stations().
+func stringMapToLuaTable(L *lua.LState, m map[string]string) *lua.LTable {
+	tbl := L.NewTable()
+	for k, v := range m {
+		tbl.RawSetString(k, lua.LString(v))
+	}
+	return tbl
 }
 
 func parseTrackSource(v lua.LValue) (*audioserverv1.TrackSource, error) {

@@ -18,6 +18,7 @@
 ---@class RadioRegisterOptions
 ---@field low_queue_threshold? integer # > 0 enables radio.on_queue_low; 0 (default) disables it
 ---@field logo_url? string # station logo/artwork URL, surfaced via radio.status()/radio.list_stations()
+---@field metadata? table<string, string> # freeform key/value data (e.g. a group name) -- opaque to the audio server, surfaced via radio.status()/radio.list_stations()
 
 ---@class RadioRegisterInfo
 ---@field slug string
@@ -52,6 +53,7 @@
 ---@field uptime_seconds integer
 ---@field queue_length integer
 ---@field logo_url string # station logo/artwork URL, if set (see radio.register's options.logo_url)
+---@field metadata table<string, string> # freeform key/value data, if set (see radio.register's options.metadata)
 ---@field current_track? RadioQueueItem # nil while playing silence
 ---@field elapsed_seconds? integer # how long current_track has been playing; only set when current_track is
 ---@field queue RadioQueueItem[] # pending items, in play order
@@ -82,6 +84,7 @@
 ---@field name string
 ---@field listener_count integer
 ---@field logo_url string
+---@field metadata table<string, string>
 
 ---@class radiolib
 ---@field args string[] # CLI args after --config/--script, e.g. {"myfm", "My FM"}

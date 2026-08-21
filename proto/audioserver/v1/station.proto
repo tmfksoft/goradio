@@ -23,6 +23,14 @@ message RegisterStationRequest {
   // name/description) to change it on the fly without disrupting
   // playback.
   string logo_url = 5;
+  // Freeform key/value metadata -- e.g. a group name to cluster stations
+  // in a dashboard, a genre tag, an operator-defined ID. The audio server
+  // never interprets these keys itself; it just stores and returns them
+  // (via GetStatus/ListStations) for the controller/player/dashboard to
+  // use however it wants. Fully replaced on re-registration, same as
+  // every other field here -- omitting it on a later call clears any
+  // previously set metadata.
+  map<string, string> metadata = 6;
 }
 
 message RegisterStationResponse {
@@ -52,6 +60,8 @@ message StationSummary {
   string name = 2;
   int64 listener_count = 3;
   string logo_url = 4;
+  // See RegisterStationRequest.metadata.
+  map<string, string> metadata = 5;
 }
 
 message ListStationsResponse {

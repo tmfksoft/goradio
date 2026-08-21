@@ -60,7 +60,7 @@ func (s *Server) RegisterStation(ctx context.Context, req *audioserverv1.Registe
 		return nil, err
 	}
 
-	st, reRegistered := s.registry.Register(req.GetSlug(), req.GetName(), req.GetDescription(), req.GetLogoUrl(), req.GetLowQueueThreshold(), func(newStation *playback.Station) {
+	st, reRegistered := s.registry.Register(req.GetSlug(), req.GetName(), req.GetDescription(), req.GetLogoUrl(), req.GetMetadata(), req.GetLowQueueThreshold(), func(newStation *playback.Station) {
 		if s.starter != nil {
 			s.starter.StartStation(newStation)
 		}
@@ -118,6 +118,7 @@ func (s *Server) ListStations(ctx context.Context, req *audioserverv1.ListStatio
 			Name:          st.Name(),
 			ListenerCount: int64(st.Broadcaster.ListenerCount()),
 			LogoUrl:       st.LogoURL(),
+			Metadata:      st.Metadata(),
 		})
 	}
 
@@ -354,6 +355,7 @@ func (s *Server) GetStatus(ctx context.Context, req *audioserverv1.GetStatusRequ
 		ListenerCount: int64(st.Broadcaster.ListenerCount()),
 		UptimeSeconds: int64(st.Uptime().Seconds()),
 		LogoUrl:       st.LogoURL(),
+		Metadata:      st.Metadata(),
 	}
 
 	if cur := st.Current(); cur != nil {

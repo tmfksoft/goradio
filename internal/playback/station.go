@@ -23,6 +23,12 @@ type Station struct {
 	name        string
 	description string
 	logoURL     string
+	// metadata is freeform key/value data set at registration (see
+	// RegisterStationRequest.metadata) -- opaque to the audio server,
+	// never interpreted here, just stored and returned via
+	// GetStatus/ListStations for the controller/player to use however it
+	// wants (e.g. a group name to cluster stations in a dashboard).
+	metadata map[string]string
 
 	current   atomic.Pointer[QueuedItem]
 	isSilence atomic.Bool
@@ -114,16 +120,18 @@ func NewStation(slug, name, description string) *Station {
 }
 
 // SetMetadata updates the station's display name/description/logo
-// URL/low-queue threshold in place, used both on first registration and
-// when a controller re-registers an already-running station. Every field
-// is fully replaced, not merged -- re-registering without a value resets
-// it (e.g. omitting logoURL clears a previously set logo), same as
+// URL/freeform metadata/low-queue threshold in place, used both on first
+// registration and when a controller re-registers an already-running
+// station. Every field is fully replaced, not merged -- re-registering
+// without a value resets it (e.g. omitting logoURL clears a previously
+// set logo, and a nil/empty metadata map clears all of it), same as
 // name/description already do.
-func (s *Station) SetMetadata(name, description, logoURL string, lowQueueThreshold int32) {
+func (s *Station) SetMetadata(name, description, logoURL string, metadata map[string]string, lowQueueThreshold int32) {
 	s.mu.Lock()
 	s.name = name
 	s.description = description
 	s.logoURL = logoURL
+	s.metadata = metadata
 	s.mu.Unlock()
 	s.lowQueueThreshold.Store(lowQueueThreshold)
 }
@@ -144,6 +152,22 @@ func (s *Station) LogoURL() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.logoURL
+}
+
+// Metadata returns a copy of the station's freeform key/value metadata
+// (see RegisterStationRequest.metadata), safe for the caller to read or
+// hold onto without racing SetMetadata.
+func (s *Station) Metadata() map[string]string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if len(s.metadata) == 0 {
+		return nil
+	}
+	out := make(map[string]string, len(s.metadata))
+	for k, v := range s.metadata {
+		out[k] = v
+	}
+	return out
 }
 
 // Current returns the currently playing queue item, or nil if the station

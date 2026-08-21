@@ -80,6 +80,7 @@ type redisCallback struct {
 
 type registerInfo struct {
 	slug, name, description, logoURL string
+	metadata                         map[string]string
 	lowQueueThreshold                int32
 }
 
@@ -200,9 +201,9 @@ func parseGRPCTarget(addr string) (target string, useTLS bool) {
 	return rest, useTLS
 }
 
-func (e *Engine) setRegisterInfo(slug, name, description, logoURL string, lowQueueThreshold int32) {
+func (e *Engine) setRegisterInfo(slug, name, description, logoURL string, metadata map[string]string, lowQueueThreshold int32) {
 	e.registerMu.Lock()
-	e.lastRegister = registerInfo{slug, name, description, logoURL, lowQueueThreshold}
+	e.lastRegister = registerInfo{slug, name, description, logoURL, metadata, lowQueueThreshold}
 	e.registeredSlug = slug
 	e.unregistered = false
 	e.registerMu.Unlock()
@@ -249,7 +250,7 @@ func (e *Engine) isUnregistered() bool {
 // (PermissionDenied), or a bad request (InvalidArgument) — return
 // immediately instead of retrying forever, since nothing changes those
 // outcomes short of the operator editing config and restarting.
-func (e *Engine) registerWithRetry(ctx context.Context, slug, name, description, logoURL string, lowQueueThreshold int32) (*audioserverv1.RegisterStationResponse, error) {
+func (e *Engine) registerWithRetry(ctx context.Context, slug, name, description, logoURL string, metadata map[string]string, lowQueueThreshold int32) (*audioserverv1.RegisterStationResponse, error) {
 	backoff := time.Second
 	const maxBackoff = 30 * time.Second
 
@@ -260,6 +261,7 @@ func (e *Engine) registerWithRetry(ctx context.Context, slug, name, description,
 			Name:              name,
 			Description:       description,
 			LogoUrl:           logoURL,
+			Metadata:          metadata,
 			LowQueueThreshold: lowQueueThreshold,
 		})
 		cancel()
@@ -339,7 +341,7 @@ func (e *Engine) subscribeEventsLoop(ctx context.Context, out chan<- *audioserve
 		}
 
 		info := e.getRegisterInfo()
-		if _, err := e.registerWithRetry(ctx, info.slug, info.name, info.description, info.logoURL, info.lowQueueThreshold); err != nil {
+		if _, err := e.registerWithRetry(ctx, info.slug, info.name, info.description, info.logoURL, info.metadata, info.lowQueueThreshold); err != nil {
 			return
 		}
 		if !e.sleepBackoff(ctx, &backoff, maxBackoff) {

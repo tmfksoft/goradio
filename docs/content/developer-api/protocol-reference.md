@@ -83,6 +83,7 @@ message RegisterStationRequest {
   string description = 3;
   int32 low_queue_threshold = 4;
   string logo_url = 5;
+  map<string, string> metadata = 6;
 }
 
 message RegisterStationResponse {
@@ -94,9 +95,9 @@ message RegisterStationResponse {
 
 Registers a station. **Idempotent by slug**: if `slug` is already
 registered, this just updates `name`/`description`/`logo_url`/
-`low_queue_threshold` in place and returns `re_registered = true` — it
-does **not** reset the queue or interrupt playback. Call this on every
-(re)connect, not just once ever — see
+`metadata`/`low_queue_threshold` in place and returns
+`re_registered = true` — it does **not** reset the queue or interrupt
+playback. Call this on every (re)connect, not just once ever — see
 [Writing a Controller](writing-a-controller.md#reconnecting).
 
 `low_queue_threshold` (optional, default 0/disabled): if > 0, the server
@@ -107,11 +108,19 @@ to queue more.
 
 `logo_url` (optional): a station logo/artwork URL, surfaced via
 `GetStatus`/`ListStations`. Purely descriptive — never fetched or
-validated by the audio server. Every field on this request is fully
-replaced on re-registration, not merged, so to update just the logo on
-the fly, re-send the same `name`/`description` along with the new
-`logo_url` — omitting it on a later call clears a previously set one,
-same as omitting `name`/`description` would.
+validated by the audio server.
+
+`metadata` (optional): freeform key/value data — a group name to cluster
+stations in a dashboard, a genre tag, an operator-defined ID, whatever you
+need. The audio server never interprets these keys itself; it just stores
+and returns them (via `GetStatus`/`ListStations`) for the
+controller/player/dashboard to use however it wants.
+
+Every field on this request is fully replaced on re-registration, not
+merged, so to update just the logo (or metadata) on the fly, re-send the
+same `name`/`description` along with the new value — omitting a field on
+a later call clears whatever was previously set for it, same as omitting
+`name`/`description` would.
 
 `stream_url` is the fully-qualified listener URL (built from the server's
 `http.public_base_url` config), suitable for handing straight to a player.
@@ -146,6 +155,7 @@ message StationSummary {
   string name = 2;
   int64 listener_count = 3;
   string logo_url = 4;
+  map<string, string> metadata = 5;
 }
 
 message ListStationsResponse {
@@ -163,7 +173,10 @@ even when the caller doesn't already know every slug in play.
 
 Deliberately lighter than `GetStatus` — no queue, no history, no current
 track — since it's meant to summarize many stations at once rather than
-give a full picture of one.
+give a full picture of one. `metadata` (see `RegisterStation`) is included
+though, since it's exactly the kind of thing a dashboard listing many
+stations wants — e.g. a `group` key to cluster related stations together
+in the list.
 
 ## QueueTrack
 
@@ -441,6 +454,7 @@ message GetStatusResponse {
   repeated HistoryEntryStatus history = 10;
   bool is_paused = 11;   // true if current_track is paused (see Pause)
   string logo_url = 12;  // station logo/artwork URL, if set (see RegisterStation)
+  map<string, string> metadata = 13;  // freeform key/value data, if set (see RegisterStation)
 }
 ```
 

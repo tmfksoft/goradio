@@ -40,7 +40,15 @@ type RegisterStationRequest struct {
 	// name/description -- re-register with a new value (and the same
 	// name/description) to change it on the fly without disrupting
 	// playback.
-	LogoUrl       string `protobuf:"bytes,5,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
+	LogoUrl string `protobuf:"bytes,5,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
+	// Freeform key/value metadata -- e.g. a group name to cluster stations
+	// in a dashboard, a genre tag, an operator-defined ID. The audio server
+	// never interprets these keys itself; it just stores and returns them
+	// (via GetStatus/ListStations) for the controller/player/dashboard to
+	// use however it wants. Fully replaced on re-registration, same as
+	// every other field here -- omitting it on a later call clears any
+	// previously set metadata.
+	Metadata      map[string]string `protobuf:"bytes,6,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -108,6 +116,13 @@ func (x *RegisterStationRequest) GetLogoUrl() string {
 		return x.LogoUrl
 	}
 	return ""
+}
+
+func (x *RegisterStationRequest) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
 }
 
 type RegisterStationResponse struct {
@@ -300,6 +315,8 @@ type StationSummary struct {
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	ListenerCount int64                  `protobuf:"varint,3,opt,name=listener_count,json=listenerCount,proto3" json:"listener_count,omitempty"`
 	LogoUrl       string                 `protobuf:"bytes,4,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
+	// See RegisterStationRequest.metadata.
+	Metadata      map[string]string `protobuf:"bytes,5,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -362,6 +379,13 @@ func (x *StationSummary) GetLogoUrl() string {
 	return ""
 }
 
+func (x *StationSummary) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 type ListStationsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Only stations the caller's token authorizes (see Claims.HasSlug) --
@@ -412,13 +436,17 @@ var File_audioserver_v1_station_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_station_proto_rawDesc = "" +
 	"\n" +
-	"\x1caudioserver/v1/station.proto\x12\x0eaudioserver.v1\"\xad\x01\n" +
+	"\x1caudioserver/v1/station.proto\x12\x0eaudioserver.v1\"\xbc\x02\n" +
 	"\x16RegisterStationRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
 	"\vdescription\x18\x03 \x01(\tR\vdescription\x12.\n" +
 	"\x13low_queue_threshold\x18\x04 \x01(\x05R\x11lowQueueThreshold\x12\x19\n" +
-	"\blogo_url\x18\x05 \x01(\tR\alogoUrl\"q\n" +
+	"\blogo_url\x18\x05 \x01(\tR\alogoUrl\x12P\n" +
+	"\bmetadata\x18\x06 \x03(\v24.audioserver.v1.RegisterStationRequest.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"q\n" +
 	"\x17RegisterStationResponse\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x1d\n" +
 	"\n" +
@@ -427,12 +455,16 @@ const file_audioserver_v1_station_proto_rawDesc = "" +
 	"\x18UnregisterStationRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\"\x1b\n" +
 	"\x19UnregisterStationResponse\"\x15\n" +
-	"\x13ListStationsRequest\"z\n" +
+	"\x13ListStationsRequest\"\x81\x02\n" +
 	"\x0eStationSummary\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12%\n" +
 	"\x0elistener_count\x18\x03 \x01(\x03R\rlistenerCount\x12\x19\n" +
-	"\blogo_url\x18\x04 \x01(\tR\alogoUrl\"R\n" +
+	"\blogo_url\x18\x04 \x01(\tR\alogoUrl\x12H\n" +
+	"\bmetadata\x18\x05 \x03(\v2,.audioserver.v1.StationSummary.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"R\n" +
 	"\x14ListStationsResponse\x12:\n" +
 	"\bstations\x18\x01 \x03(\v2\x1e.audioserver.v1.StationSummaryR\bstationsBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
@@ -448,7 +480,7 @@ func file_audioserver_v1_station_proto_rawDescGZIP() []byte {
 	return file_audioserver_v1_station_proto_rawDescData
 }
 
-var file_audioserver_v1_station_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_audioserver_v1_station_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
 var file_audioserver_v1_station_proto_goTypes = []any{
 	(*RegisterStationRequest)(nil),    // 0: audioserver.v1.RegisterStationRequest
 	(*RegisterStationResponse)(nil),   // 1: audioserver.v1.RegisterStationResponse
@@ -457,14 +489,18 @@ var file_audioserver_v1_station_proto_goTypes = []any{
 	(*ListStationsRequest)(nil),       // 4: audioserver.v1.ListStationsRequest
 	(*StationSummary)(nil),            // 5: audioserver.v1.StationSummary
 	(*ListStationsResponse)(nil),      // 6: audioserver.v1.ListStationsResponse
+	nil,                               // 7: audioserver.v1.RegisterStationRequest.MetadataEntry
+	nil,                               // 8: audioserver.v1.StationSummary.MetadataEntry
 }
 var file_audioserver_v1_station_proto_depIdxs = []int32{
-	5, // 0: audioserver.v1.ListStationsResponse.stations:type_name -> audioserver.v1.StationSummary
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	7, // 0: audioserver.v1.RegisterStationRequest.metadata:type_name -> audioserver.v1.RegisterStationRequest.MetadataEntry
+	8, // 1: audioserver.v1.StationSummary.metadata:type_name -> audioserver.v1.StationSummary.MetadataEntry
+	5, // 2: audioserver.v1.ListStationsResponse.stations:type_name -> audioserver.v1.StationSummary
+	3, // [3:3] is the sub-list for method output_type
+	3, // [3:3] is the sub-list for method input_type
+	3, // [3:3] is the sub-list for extension type_name
+	3, // [3:3] is the sub-list for extension extendee
+	0, // [0:3] is the sub-list for field type_name
 }
 
 func init() { file_audioserver_v1_station_proto_init() }
@@ -478,7 +514,7 @@ func file_audioserver_v1_station_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audioserver_v1_station_proto_rawDesc), len(file_audioserver_v1_station_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   7,
+			NumMessages:   9,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

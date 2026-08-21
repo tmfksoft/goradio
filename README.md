@@ -100,7 +100,7 @@ richer station roster (songs, idents, DJ chatter, callers, ad rotation) on
 top of, in Lua, without needing to touch Go:
 
 ```lua
-local info = radio.register(slug, name, description [, {low_queue_threshold = 3, logo_url = "..."}])
+local info = radio.register(slug, name, description [, {low_queue_threshold = 3, logo_url = "...", metadata = {group = "..."}}])
 radio.unregister()             -- remove this station: stops its player, disconnects listeners/events
 radio.queue(source, mode)      -- source: path/URL string or {type=,location=,title=,artist=,cover_art=}
                                 -- mode: "APPEND" (default) | "PLAY_NEXT" | "PLAY_NOW_INTERRUPT"

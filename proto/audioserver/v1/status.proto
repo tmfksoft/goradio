@@ -56,4 +56,6 @@ message GetStatusResponse {
   bool is_paused = 11;
   // The station's logo/artwork URL, if set (see RegisterStationRequest).
   string logo_url = 12;
+  // See RegisterStationRequest.metadata.
+  map<string, string> metadata = 13;
 }

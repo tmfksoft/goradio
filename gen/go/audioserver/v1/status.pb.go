@@ -247,7 +247,9 @@ type GetStatusResponse struct {
 	// continue from current_track_elapsed_seconds on Resume.
 	IsPaused bool `protobuf:"varint,11,opt,name=is_paused,json=isPaused,proto3" json:"is_paused,omitempty"`
 	// The station's logo/artwork URL, if set (see RegisterStationRequest).
-	LogoUrl       string `protobuf:"bytes,12,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
+	LogoUrl string `protobuf:"bytes,12,opt,name=logo_url,json=logoUrl,proto3" json:"logo_url,omitempty"`
+	// See RegisterStationRequest.metadata.
+	Metadata      map[string]string `protobuf:"bytes,13,rep,name=metadata,proto3" json:"metadata,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -366,6 +368,13 @@ func (x *GetStatusResponse) GetLogoUrl() string {
 	return ""
 }
 
+func (x *GetStatusResponse) GetMetadata() map[string]string {
+	if x != nil {
+		return x.Metadata
+	}
+	return nil
+}
+
 var File_audioserver_v1_status_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_status_proto_rawDesc = "" +
@@ -384,7 +393,7 @@ const file_audioserver_v1_status_proto_rawDesc = "" +
 	"\x04mode\x18\x03 \x01(\x0e2\x19.audioserver.v1.QueueModeR\x04mode\x12)\n" +
 	"\x10duration_seconds\x18\x04 \x01(\x03R\x0fdurationSeconds\x12\x16\n" +
 	"\x06reason\x18\x05 \x01(\tR\x06reason\x12'\n" +
-	"\x10ended_at_unix_ms\x18\x06 \x01(\x03R\rendedAtUnixMs\"\x85\x04\n" +
+	"\x10ended_at_unix_ms\x18\x06 \x01(\x03R\rendedAtUnixMs\"\x8f\x05\n" +
 	"\x11GetStatusResponse\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -399,7 +408,11 @@ const file_audioserver_v1_status_proto_rawDesc = "" +
 	"\ahistory\x18\n" +
 	" \x03(\v2\".audioserver.v1.HistoryEntryStatusR\ahistory\x12\x1b\n" +
 	"\tis_paused\x18\v \x01(\bR\bisPaused\x12\x19\n" +
-	"\blogo_url\x18\f \x01(\tR\alogoUrlBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\blogo_url\x18\f \x01(\tR\alogoUrl\x12K\n" +
+	"\bmetadata\x18\r \x03(\v2/.audioserver.v1.GetStatusResponse.MetadataEntryR\bmetadata\x1a;\n" +
+	"\rMetadataEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_status_proto_rawDescOnce sync.Once
@@ -413,28 +426,30 @@ func file_audioserver_v1_status_proto_rawDescGZIP() []byte {
 	return file_audioserver_v1_status_proto_rawDescData
 }
 
-var file_audioserver_v1_status_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_audioserver_v1_status_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_audioserver_v1_status_proto_goTypes = []any{
 	(*GetStatusRequest)(nil),   // 0: audioserver.v1.GetStatusRequest
 	(*QueuedItemStatus)(nil),   // 1: audioserver.v1.QueuedItemStatus
 	(*HistoryEntryStatus)(nil), // 2: audioserver.v1.HistoryEntryStatus
 	(*GetStatusResponse)(nil),  // 3: audioserver.v1.GetStatusResponse
-	(*TrackSource)(nil),        // 4: audioserver.v1.TrackSource
-	(QueueMode)(0),             // 5: audioserver.v1.QueueMode
+	nil,                        // 4: audioserver.v1.GetStatusResponse.MetadataEntry
+	(*TrackSource)(nil),        // 5: audioserver.v1.TrackSource
+	(QueueMode)(0),             // 6: audioserver.v1.QueueMode
 }
 var file_audioserver_v1_status_proto_depIdxs = []int32{
-	4, // 0: audioserver.v1.QueuedItemStatus.source:type_name -> audioserver.v1.TrackSource
-	5, // 1: audioserver.v1.QueuedItemStatus.mode:type_name -> audioserver.v1.QueueMode
-	4, // 2: audioserver.v1.HistoryEntryStatus.source:type_name -> audioserver.v1.TrackSource
-	5, // 3: audioserver.v1.HistoryEntryStatus.mode:type_name -> audioserver.v1.QueueMode
+	5, // 0: audioserver.v1.QueuedItemStatus.source:type_name -> audioserver.v1.TrackSource
+	6, // 1: audioserver.v1.QueuedItemStatus.mode:type_name -> audioserver.v1.QueueMode
+	5, // 2: audioserver.v1.HistoryEntryStatus.source:type_name -> audioserver.v1.TrackSource
+	6, // 3: audioserver.v1.HistoryEntryStatus.mode:type_name -> audioserver.v1.QueueMode
 	1, // 4: audioserver.v1.GetStatusResponse.current_track:type_name -> audioserver.v1.QueuedItemStatus
 	1, // 5: audioserver.v1.GetStatusResponse.queue:type_name -> audioserver.v1.QueuedItemStatus
 	2, // 6: audioserver.v1.GetStatusResponse.history:type_name -> audioserver.v1.HistoryEntryStatus
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	4, // 7: audioserver.v1.GetStatusResponse.metadata:type_name -> audioserver.v1.GetStatusResponse.MetadataEntry
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_audioserver_v1_status_proto_init() }
@@ -449,7 +464,7 @@ func file_audioserver_v1_status_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audioserver_v1_status_proto_rawDesc), len(file_audioserver_v1_status_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
