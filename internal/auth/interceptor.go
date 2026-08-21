@@ -89,10 +89,10 @@ func RequireSlug(ctx context.Context, slug string) error {
 
 // RequireWrite checks that the caller's claims (attached by the auth
 // interceptor) are not read-only, returning codes.PermissionDenied if
-// they are. Every write RPC (RegisterStation, QueueTrack,
-// RemoveFromQueue, ClearQueue, Skip) calls this in addition to
-// RequireSlug; GetStatus and SubscribeEvents don't, since a read-only
-// token is exactly meant to allow those.
+// they are. Every write RPC (RegisterStation, UnregisterStation,
+// QueueTrack, RemoveFromQueue, ClearQueue, Skip, SkipTo) calls this in
+// addition to RequireSlug; GetStatus and SubscribeEvents don't, since a
+// read-only token is exactly meant to allow those.
 func RequireWrite(ctx context.Context) error {
 	claims, ok := FromContext(ctx)
 	if !ok {

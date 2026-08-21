@@ -96,3 +96,20 @@ message SkipResponse {
   // False if there was nothing playing to skip (already silence).
   bool skipped = 1;
 }
+
+// SkipToRequest jumps playback straight to a specific pending item: every
+// item ahead of queue_id in the queue is dropped, queue_id becomes the new
+// front, and whatever is currently playing is interrupted so that item
+// starts immediately rather than waiting for the current one to finish.
+message SkipToRequest {
+  string slug = 1;
+  string queue_id = 2;
+}
+
+message SkipToResponse {
+  // How many pending items ahead of queue_id were dropped.
+  int32 removed_count = 1;
+  // True if a currently-playing track was interrupted as a result (false
+  // if the station was already playing silence with nothing to cut short).
+  bool interrupted_current = 2;
+}

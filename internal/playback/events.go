@@ -51,6 +51,17 @@ func (b *EventBus) Subscribe() (id uint64, ch <-chan *audioserverv1.StationEvent
 	return id, c, unsub
 }
 
+// CloseAll disconnects every currently connected subscriber by closing
+// their channels. Used when a station is unregistered (see Station.Stop).
+func (b *EventBus) CloseAll() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for id, c := range b.subs {
+		delete(b.subs, id)
+		close(c)
+	}
+}
+
 // Publish fans e out to every subscriber, dropping it for any subscriber
 // whose buffer is currently full rather than blocking the publisher.
 func (b *EventBus) Publish(e *audioserverv1.StationEvent) {

@@ -33,6 +33,24 @@ func TestSignVerifyRoundTrip(t *testing.T) {
 	}
 }
 
+func TestHasSlugWildcard(t *testing.T) {
+	all := &Claims{Slugs: []string{"*"}}
+	if !all.HasSlug("station-a") {
+		t.Error("expected \"*\" to authorize any slug")
+	}
+	if !all.HasSlug("anything-else") {
+		t.Error("expected \"*\" to authorize any slug")
+	}
+
+	prefix := &Claims{Slugs: []string{"test-*"}}
+	if !prefix.HasSlug("test-a") {
+		t.Error("expected \"test-*\" to authorize test-a")
+	}
+	if prefix.HasSlug("station-a") {
+		t.Error("did not expect \"test-*\" to authorize station-a")
+	}
+}
+
 func TestVerifyRejectsWrongSecret(t *testing.T) {
 	token, err := Sign([]byte("secret-a"), []string{"station-a"}, "tester", time.Hour, false)
 	if err != nil {

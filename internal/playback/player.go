@@ -109,6 +109,7 @@ func (s *Station) Run(ctx context.Context, log *slog.Logger, cfg PlayerConfig) {
 
 		s.SetCurrent(nil)
 		s.PublishTrackEnded(item.ID, reason)
+		s.RecordHistory(item, reason)
 	}
 }
 

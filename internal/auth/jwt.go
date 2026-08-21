@@ -5,16 +5,20 @@ package auth
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 // Claims is the JWT payload used across GoRadio: the bearer may act on any
-// station slug listed in Slugs. If ReadOnly is true, that's restricted to
+// station slug listed in Slugs. Entries may be glob patterns (as understood
+// by path/filepath's Match, e.g. "*" for every station or "test-*" for a
+// prefix); see HasSlug. If ReadOnly is true, that's restricted to
 // read-only calls (GetStatus, SubscribeEvents) -- every write RPC
-// (RegisterStation, QueueTrack, RemoveFromQueue, ClearQueue, Skip)
-// requires ReadOnly to be false; see RequireWrite.
+// (RegisterStation, UnregisterStation, QueueTrack, RemoveFromQueue,
+// ClearQueue, Skip, SkipTo) requires ReadOnly to be false; see
+// RequireWrite.
 type Claims struct {
 	jwt.RegisteredClaims
 	Slugs    []string `json:"slugs"`
@@ -62,9 +66,14 @@ func Verify(secret []byte, tokenString string) (*Claims, error) {
 }
 
 // HasSlug reports whether the claims authorize the given station slug.
+// Entries in Slugs may be exact slugs or glob patterns (e.g. "*" for every
+// station, "test-*" for a prefix); see path/filepath's Match for syntax.
 func (c *Claims) HasSlug(slug string) bool {
 	for _, s := range c.Slugs {
 		if s == slug {
+			return true
+		}
+		if matched, err := filepath.Match(s, slug); err == nil && matched {
 			return true
 		}
 	}

@@ -21,7 +21,12 @@ station slugs the token should authorize.
 radio tokengen -secret s3cret -subject myfm-prod -ttl 720h myfm
 radio tokengen -secret s3cret myfm otherfm thirdfm   # one token, three stations
 radio tokengen -secret s3cret -readonly myfm         # observer-only, can't queue/skip/etc.
+radio tokengen -secret s3cret "*"                    # every station — e.g. for a management dashboard
 ```
+
+A slug argument may be a glob pattern (`*`, `test-*`, ...) instead of an
+exact slug — see [Protocol Reference — Auth](../developer-api/protocol-reference.md#authentication)
+for matching details.
 
 ## What's in the token
 
@@ -37,8 +42,8 @@ instead.
 A read-only token can still call `GetStatus` and `SubscribeEvents` (and
 the [now-playing HTTP endpoint](../developer-api/now-playing-http-api.md),
 though that one doesn't need a token at all for its public fields) — every
-write RPC (`RegisterStation`, `QueueTrack`, `RemoveFromQueue`,
-`ClearQueue`, `Skip`) gets `PermissionDenied`. Use this for anything that
+write RPC (`RegisterStation`, `UnregisterStation`, `QueueTrack`,
+`RemoveFromQueue`, `ClearQueue`, `Skip`, `SkipTo`) gets `PermissionDenied`. Use this for anything that
 should only ever observe a station — a dashboard, a bot, a second
 controller instance that watches but never queues — without trusting it
 not to also call `QueueTrack` by mistake or by design.

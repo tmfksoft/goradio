@@ -137,6 +137,93 @@ func (x *QueuedItemStatus) GetDurationSeconds() int64 {
 	return 0
 }
 
+// HistoryEntryStatus is one item that finished playing, most-recent-last,
+// capped at a small fixed number of entries (see GetStatusResponse.history).
+type HistoryEntryStatus struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	QueueId         string                 `protobuf:"bytes,1,opt,name=queue_id,json=queueId,proto3" json:"queue_id,omitempty"`
+	Source          *TrackSource           `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	Mode            QueueMode              `protobuf:"varint,3,opt,name=mode,proto3,enum=audioserver.v1.QueueMode" json:"mode,omitempty"`
+	DurationSeconds int64                  `protobuf:"varint,4,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	// "completed" or "interrupted" -- same values as TrackEndedPayload.reason.
+	Reason        string `protobuf:"bytes,5,opt,name=reason,proto3" json:"reason,omitempty"`
+	EndedAtUnixMs int64  `protobuf:"varint,6,opt,name=ended_at_unix_ms,json=endedAtUnixMs,proto3" json:"ended_at_unix_ms,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *HistoryEntryStatus) Reset() {
+	*x = HistoryEntryStatus{}
+	mi := &file_audioserver_v1_status_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *HistoryEntryStatus) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*HistoryEntryStatus) ProtoMessage() {}
+
+func (x *HistoryEntryStatus) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_status_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use HistoryEntryStatus.ProtoReflect.Descriptor instead.
+func (*HistoryEntryStatus) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_status_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *HistoryEntryStatus) GetQueueId() string {
+	if x != nil {
+		return x.QueueId
+	}
+	return ""
+}
+
+func (x *HistoryEntryStatus) GetSource() *TrackSource {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *HistoryEntryStatus) GetMode() QueueMode {
+	if x != nil {
+		return x.Mode
+	}
+	return QueueMode_QUEUE_MODE_UNSPECIFIED
+}
+
+func (x *HistoryEntryStatus) GetDurationSeconds() int64 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
+}
+
+func (x *HistoryEntryStatus) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *HistoryEntryStatus) GetEndedAtUnixMs() int64 {
+	if x != nil {
+		return x.EndedAtUnixMs
+	}
+	return 0
+}
+
 type GetStatusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
@@ -150,13 +237,18 @@ type GetStatusResponse struct {
 	// How long current_track has been playing. Only meaningful when
 	// current_track is set (0 while playing silence).
 	CurrentTrackElapsedSeconds int64 `protobuf:"varint,9,opt,name=current_track_elapsed_seconds,json=currentTrackElapsedSeconds,proto3" json:"current_track_elapsed_seconds,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	// The most recently finished items, oldest first, capped at a small
+	// fixed count. Meant to seed a dashboard's view on first load; keep it
+	// current afterward from TRACK_ENDED events on SubscribeEvents rather
+	// than re-polling GetStatus.
+	History       []*HistoryEntryStatus `protobuf:"bytes,10,rep,name=history,proto3" json:"history,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetStatusResponse) Reset() {
 	*x = GetStatusResponse{}
-	mi := &file_audioserver_v1_status_proto_msgTypes[2]
+	mi := &file_audioserver_v1_status_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -168,7 +260,7 @@ func (x *GetStatusResponse) String() string {
 func (*GetStatusResponse) ProtoMessage() {}
 
 func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_audioserver_v1_status_proto_msgTypes[2]
+	mi := &file_audioserver_v1_status_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -181,7 +273,7 @@ func (x *GetStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetStatusResponse) Descriptor() ([]byte, []int) {
-	return file_audioserver_v1_status_proto_rawDescGZIP(), []int{2}
+	return file_audioserver_v1_status_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetStatusResponse) GetSlug() string {
@@ -247,6 +339,13 @@ func (x *GetStatusResponse) GetCurrentTrackElapsedSeconds() int64 {
 	return 0
 }
 
+func (x *GetStatusResponse) GetHistory() []*HistoryEntryStatus {
+	if x != nil {
+		return x.History
+	}
+	return nil
+}
+
 var File_audioserver_v1_status_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_status_proto_rawDesc = "" +
@@ -258,7 +357,14 @@ const file_audioserver_v1_status_proto_rawDesc = "" +
 	"\bqueue_id\x18\x01 \x01(\tR\aqueueId\x123\n" +
 	"\x06source\x18\x02 \x01(\v2\x1b.audioserver.v1.TrackSourceR\x06source\x12-\n" +
 	"\x04mode\x18\x03 \x01(\x0e2\x19.audioserver.v1.QueueModeR\x04mode\x12)\n" +
-	"\x10duration_seconds\x18\x04 \x01(\x03R\x0fdurationSeconds\"\x8f\x03\n" +
+	"\x10duration_seconds\x18\x04 \x01(\x03R\x0fdurationSeconds\"\xff\x01\n" +
+	"\x12HistoryEntryStatus\x12\x19\n" +
+	"\bqueue_id\x18\x01 \x01(\tR\aqueueId\x123\n" +
+	"\x06source\x18\x02 \x01(\v2\x1b.audioserver.v1.TrackSourceR\x06source\x12-\n" +
+	"\x04mode\x18\x03 \x01(\x0e2\x19.audioserver.v1.QueueModeR\x04mode\x12)\n" +
+	"\x10duration_seconds\x18\x04 \x01(\x03R\x0fdurationSeconds\x12\x16\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\x12'\n" +
+	"\x10ended_at_unix_ms\x18\x06 \x01(\x03R\rendedAtUnixMs\"\xcd\x03\n" +
 	"\x11GetStatusResponse\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -269,7 +375,9 @@ const file_audioserver_v1_status_proto_rawDesc = "" +
 	"\x05queue\x18\x06 \x03(\v2 .audioserver.v1.QueuedItemStatusR\x05queue\x12%\n" +
 	"\x0elistener_count\x18\a \x01(\x03R\rlistenerCount\x12%\n" +
 	"\x0euptime_seconds\x18\b \x01(\x03R\ruptimeSeconds\x12A\n" +
-	"\x1dcurrent_track_elapsed_seconds\x18\t \x01(\x03R\x1acurrentTrackElapsedSecondsBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\x1dcurrent_track_elapsed_seconds\x18\t \x01(\x03R\x1acurrentTrackElapsedSeconds\x12<\n" +
+	"\ahistory\x18\n" +
+	" \x03(\v2\".audioserver.v1.HistoryEntryStatusR\ahistoryBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_status_proto_rawDescOnce sync.Once
@@ -283,24 +391,28 @@ func file_audioserver_v1_status_proto_rawDescGZIP() []byte {
 	return file_audioserver_v1_status_proto_rawDescData
 }
 
-var file_audioserver_v1_status_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_audioserver_v1_status_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_audioserver_v1_status_proto_goTypes = []any{
-	(*GetStatusRequest)(nil),  // 0: audioserver.v1.GetStatusRequest
-	(*QueuedItemStatus)(nil),  // 1: audioserver.v1.QueuedItemStatus
-	(*GetStatusResponse)(nil), // 2: audioserver.v1.GetStatusResponse
-	(*TrackSource)(nil),       // 3: audioserver.v1.TrackSource
-	(QueueMode)(0),            // 4: audioserver.v1.QueueMode
+	(*GetStatusRequest)(nil),   // 0: audioserver.v1.GetStatusRequest
+	(*QueuedItemStatus)(nil),   // 1: audioserver.v1.QueuedItemStatus
+	(*HistoryEntryStatus)(nil), // 2: audioserver.v1.HistoryEntryStatus
+	(*GetStatusResponse)(nil),  // 3: audioserver.v1.GetStatusResponse
+	(*TrackSource)(nil),        // 4: audioserver.v1.TrackSource
+	(QueueMode)(0),             // 5: audioserver.v1.QueueMode
 }
 var file_audioserver_v1_status_proto_depIdxs = []int32{
-	3, // 0: audioserver.v1.QueuedItemStatus.source:type_name -> audioserver.v1.TrackSource
-	4, // 1: audioserver.v1.QueuedItemStatus.mode:type_name -> audioserver.v1.QueueMode
-	1, // 2: audioserver.v1.GetStatusResponse.current_track:type_name -> audioserver.v1.QueuedItemStatus
-	1, // 3: audioserver.v1.GetStatusResponse.queue:type_name -> audioserver.v1.QueuedItemStatus
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 0: audioserver.v1.QueuedItemStatus.source:type_name -> audioserver.v1.TrackSource
+	5, // 1: audioserver.v1.QueuedItemStatus.mode:type_name -> audioserver.v1.QueueMode
+	4, // 2: audioserver.v1.HistoryEntryStatus.source:type_name -> audioserver.v1.TrackSource
+	5, // 3: audioserver.v1.HistoryEntryStatus.mode:type_name -> audioserver.v1.QueueMode
+	1, // 4: audioserver.v1.GetStatusResponse.current_track:type_name -> audioserver.v1.QueuedItemStatus
+	1, // 5: audioserver.v1.GetStatusResponse.queue:type_name -> audioserver.v1.QueuedItemStatus
+	2, // 6: audioserver.v1.GetStatusResponse.history:type_name -> audioserver.v1.HistoryEntryStatus
+	7, // [7:7] is the sub-list for method output_type
+	7, // [7:7] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_audioserver_v1_status_proto_init() }
@@ -315,7 +427,7 @@ func file_audioserver_v1_status_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audioserver_v1_status_proto_rawDesc), len(file_audioserver_v1_status_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

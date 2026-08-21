@@ -680,6 +680,117 @@ func (x *SkipResponse) GetSkipped() bool {
 	return false
 }
 
+// SkipToRequest jumps playback straight to a specific pending item: every
+// item ahead of queue_id in the queue is dropped, queue_id becomes the new
+// front, and whatever is currently playing is interrupted so that item
+// starts immediately rather than waiting for the current one to finish.
+type SkipToRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	QueueId       string                 `protobuf:"bytes,2,opt,name=queue_id,json=queueId,proto3" json:"queue_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SkipToRequest) Reset() {
+	*x = SkipToRequest{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SkipToRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SkipToRequest) ProtoMessage() {}
+
+func (x *SkipToRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SkipToRequest.ProtoReflect.Descriptor instead.
+func (*SkipToRequest) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SkipToRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *SkipToRequest) GetQueueId() string {
+	if x != nil {
+		return x.QueueId
+	}
+	return ""
+}
+
+type SkipToResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How many pending items ahead of queue_id were dropped.
+	RemovedCount int32 `protobuf:"varint,1,opt,name=removed_count,json=removedCount,proto3" json:"removed_count,omitempty"`
+	// True if a currently-playing track was interrupted as a result (false
+	// if the station was already playing silence with nothing to cut short).
+	InterruptedCurrent bool `protobuf:"varint,2,opt,name=interrupted_current,json=interruptedCurrent,proto3" json:"interrupted_current,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *SkipToResponse) Reset() {
+	*x = SkipToResponse{}
+	mi := &file_audioserver_v1_queue_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SkipToResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SkipToResponse) ProtoMessage() {}
+
+func (x *SkipToResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_queue_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SkipToResponse.ProtoReflect.Descriptor instead.
+func (*SkipToResponse) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_queue_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *SkipToResponse) GetRemovedCount() int32 {
+	if x != nil {
+		return x.RemovedCount
+	}
+	return 0
+}
+
+func (x *SkipToResponse) GetInterruptedCurrent() bool {
+	if x != nil {
+		return x.InterruptedCurrent
+	}
+	return false
+}
+
 var File_audioserver_v1_queue_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_queue_proto_rawDesc = "" +
@@ -715,7 +826,13 @@ const file_audioserver_v1_queue_proto_rawDesc = "" +
 	"\vSkipRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\"(\n" +
 	"\fSkipResponse\x12\x18\n" +
-	"\askipped\x18\x01 \x01(\bR\askipped*{\n" +
+	"\askipped\x18\x01 \x01(\bR\askipped\">\n" +
+	"\rSkipToRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x19\n" +
+	"\bqueue_id\x18\x02 \x01(\tR\aqueueId\"f\n" +
+	"\x0eSkipToResponse\x12#\n" +
+	"\rremoved_count\x18\x01 \x01(\x05R\fremovedCount\x12/\n" +
+	"\x13interrupted_current\x18\x02 \x01(\bR\x12interruptedCurrent*{\n" +
 	"\tQueueMode\x12\x1a\n" +
 	"\x16QUEUE_MODE_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11QUEUE_MODE_APPEND\x10\x01\x12\x18\n" +
@@ -743,7 +860,7 @@ func file_audioserver_v1_queue_proto_rawDescGZIP() []byte {
 }
 
 var file_audioserver_v1_queue_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_audioserver_v1_queue_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_audioserver_v1_queue_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_audioserver_v1_queue_proto_goTypes = []any{
 	(QueueMode)(0),                  // 0: audioserver.v1.QueueMode
 	(Transition)(0),                 // 1: audioserver.v1.Transition
@@ -757,6 +874,8 @@ var file_audioserver_v1_queue_proto_goTypes = []any{
 	(*ClearQueueResponse)(nil),      // 9: audioserver.v1.ClearQueueResponse
 	(*SkipRequest)(nil),             // 10: audioserver.v1.SkipRequest
 	(*SkipResponse)(nil),            // 11: audioserver.v1.SkipResponse
+	(*SkipToRequest)(nil),           // 12: audioserver.v1.SkipToRequest
+	(*SkipToResponse)(nil),          // 13: audioserver.v1.SkipToResponse
 }
 var file_audioserver_v1_queue_proto_depIdxs = []int32{
 	2, // 0: audioserver.v1.TrackSource.type:type_name -> audioserver.v1.TrackSourceType
@@ -781,7 +900,7 @@ func file_audioserver_v1_queue_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audioserver_v1_queue_proto_rawDesc), len(file_audioserver_v1_queue_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   9,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

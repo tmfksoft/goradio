@@ -6,16 +6,18 @@ Full source: [`proto/audioserver/v1`](https://github.com/tmfksoft/goradio/tree/m
 ```proto
 service AudioServerService {
   rpc RegisterStation(RegisterStationRequest) returns (RegisterStationResponse);
+  rpc UnregisterStation(UnregisterStationRequest) returns (UnregisterStationResponse);
   rpc QueueTrack(QueueTrackRequest) returns (QueueTrackResponse);
   rpc RemoveFromQueue(RemoveFromQueueRequest) returns (RemoveFromQueueResponse);
   rpc ClearQueue(ClearQueueRequest) returns (ClearQueueResponse);
   rpc Skip(SkipRequest) returns (SkipResponse);
+  rpc SkipTo(SkipToRequest) returns (SkipToResponse);
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc SubscribeEvents(SubscribeEventsRequest) returns (stream StationEvent);
 }
 ```
 
-Seven RPCs: six unary commands, one server-streaming feed of events. There
+Nine RPCs: eight unary commands, one server-streaming feed of events. There
 is no bidirectional streaming — commands are always plain request/response.
 
 ## Authentication
@@ -39,9 +41,17 @@ then checks that **the slug the specific call targets** is present in
 `slugs` — a token scoped to `myfm` gets `PermissionDenied` on any call made
 against `otherfm`, even if both stations exist on the same server.
 
+Entries in `slugs` may be glob patterns instead of exact slugs (matched with
+Go's `path/filepath.Match`): `"*"` authorizes every station on the server —
+useful for a management dashboard that lists/controls all stations — and a
+pattern like `"test-*"` authorizes any slug with that prefix. Note that `*`
+does not cross a `/`, so a slug containing a slash needs its own explicit
+pattern.
+
 `read_only` (optional, default `false` — omit the field entirely for a
 normal read-write token) additionally gates every **write** RPC —
-`RegisterStation`, `QueueTrack`, `RemoveFromQueue`, `ClearQueue`, `Skip` —
+`RegisterStation`, `UnregisterStation`, `QueueTrack`, `RemoveFromQueue`,
+`ClearQueue`, `Skip`, `SkipTo` —
 behind `read_only` being false; a read-only token gets `PermissionDenied`
 on any of those, while `GetStatus`, `SubscribeEvents`, and the
 [now-playing HTTP endpoint](now-playing-http-api.md) remain available
@@ -88,7 +98,24 @@ to queue more.
 `http.public_base_url` config), suitable for handing straight to a player.
 
 Station registration is **in-memory only** on the audio server — it does
-not survive a `radio serve` restart. There's no `DeregisterStation` RPC.
+not survive a `radio serve` restart. See `UnregisterStation` below to
+remove one explicitly before that.
+
+## UnregisterStation
+
+```proto
+message UnregisterStationRequest {
+  string slug = 1;
+}
+
+message UnregisterStationResponse {}
+```
+
+Removes a station from the registry: stops its player goroutine, and
+disconnects every listener currently on `/stream/{slug}` and every open
+`SubscribeEvents` stream for it. `NotFound` if `slug` isn't registered.
+This does not persist anywhere — re-`RegisterStation`ing the same slug
+afterward starts a fresh station with an empty queue, not a resumed one.
 
 ## QueueTrack
 
@@ -222,6 +249,31 @@ indefinitely: it's not a distinct concept at the protocol level, just a
 `TrackSource` whose relay keeps running until `Skip`,
 `QUEUE_MODE_PLAY_NOW_INTERRUPT`, or the upstream connection itself drops.
 
+## SkipTo
+
+```proto
+message SkipToRequest {
+  string slug = 1;
+  string queue_id = 2;
+}
+
+message SkipToResponse {
+  int32 removed_count = 1;
+  bool interrupted_current = 2;
+}
+```
+
+Jumps playback straight to a specific pending item, by `queue_id` (not
+position — a dashboard's view of positions can be stale by the time the
+call lands, since anything can finish or get queued in between; `queue_id`
+doesn't have that race). Every item ahead of it in the queue is dropped
+(`removed_count`), and whatever's currently playing is interrupted
+(`interrupted_current`) so the target item starts immediately instead of
+waiting for the current one to finish. `NotFound` if `queue_id` isn't a
+pending item — in particular, you can't `SkipTo` whatever's already
+playing, since it's left the queue by then; use plain `Skip` to interrupt
+the current track without changing what plays after it.
+
 ## GetStatus
 
 ```proto
@@ -236,6 +288,15 @@ message QueuedItemStatus {
   int64 duration_seconds = 4;   // 0 = unknown/indefinite (a live relay, or not-yet-ready)
 }
 
+message HistoryEntryStatus {
+  string queue_id = 1;
+  TrackSource source = 2;
+  QueueMode mode = 3;
+  int64 duration_seconds = 4;
+  string reason = 5;              // "completed" or "interrupted"
+  int64 ended_at_unix_ms = 6;
+}
+
 message GetStatusResponse {
   string slug = 1;
   string name = 2;
@@ -246,6 +307,7 @@ message GetStatusResponse {
   int64 listener_count = 7;
   int64 uptime_seconds = 8;
   int64 current_track_elapsed_seconds = 9;   // only meaningful when current_track is set
+  repeated HistoryEntryStatus history = 10;
 }
 ```
 
@@ -255,6 +317,15 @@ An on-demand snapshot. If `slug` isn't registered, `is_registered` is
 each with its `queue_id` — useful for building your own queue inspection
 or de-duplication logic without tracking every `QueueTrack` response
 yourself.
+
+`history` carries the most recently finished items, oldest first, capped at
+a small fixed count (currently 20) — enough to seed a "recently played"
+view. This is meant for a **one-shot fetch on load, not polling**: build
+your initial state from one `GetStatus` call, then keep both `queue` and
+`history` current from there by watching `SubscribeEvents`
+(`QUEUE_UPDATED` for the queue, `TRACK_STARTED`/`TRACK_ENDED` to move the
+current track into your own history list) rather than re-calling
+`GetStatus` on a timer.
 
 `duration_seconds` is `0` for a live relay (no fixed length) and also
 briefly `0` for a pending item whose prefetch hasn't finished yet — it's

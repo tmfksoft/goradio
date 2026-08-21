@@ -24,3 +24,14 @@ message RegisterStationResponse {
   string stream_url = 2;
   bool re_registered = 3;
 }
+
+// UnregisterStationRequest removes a station from the registry and stops
+// its player goroutine/broadcaster. Any listeners currently subscribed to
+// its stream are disconnected. This does not persist anywhere -- a
+// controller that re-registers the same slug afterward starts a fresh
+// station with an empty queue.
+message UnregisterStationRequest {
+  string slug = 1;
+}
+
+message UnregisterStationResponse {}

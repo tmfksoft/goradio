@@ -43,6 +43,21 @@ func (r *Registry) Register(slug, name, description string, lowQueueThreshold in
 	return st, false
 }
 
+// Unregister removes slug from the registry, if present, and returns the
+// station that was removed. It does not stop the station's player
+// goroutine itself -- callers are expected to call Station.Stop() on the
+// returned station.
+func (r *Registry) Unregister(slug string) (*playback.Station, bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	st, ok := r.stations[slug]
+	if !ok {
+		return nil, false
+	}
+	delete(r.stations, slug)
+	return st, true
+}
+
 // Get returns the station registered under slug, if any.
 func (r *Registry) Get(slug string) (*playback.Station, bool) {
 	r.mu.RLock()

@@ -21,6 +21,18 @@ message QueuedItemStatus {
   int64 duration_seconds = 4;
 }
 
+// HistoryEntryStatus is one item that finished playing, most-recent-last,
+// capped at a small fixed number of entries (see GetStatusResponse.history).
+message HistoryEntryStatus {
+  string queue_id = 1;
+  TrackSource source = 2;
+  QueueMode mode = 3;
+  int64 duration_seconds = 4;
+  // "completed" or "interrupted" -- same values as TrackEndedPayload.reason.
+  string reason = 5;
+  int64 ended_at_unix_ms = 6;
+}
+
 message GetStatusResponse {
   string slug = 1;
   string name = 2;
@@ -33,4 +45,9 @@ message GetStatusResponse {
   // How long current_track has been playing. Only meaningful when
   // current_track is set (0 while playing silence).
   int64 current_track_elapsed_seconds = 9;
+  // The most recently finished items, oldest first, capped at a small
+  // fixed count. Meant to seed a dashboard's view on first load; keep it
+  // current afterward from TRACK_ENDED events on SubscribeEvents rather
+  // than re-polling GetStatus.
+  repeated HistoryEntryStatus history = 10;
 }

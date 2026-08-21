@@ -137,6 +137,21 @@ func (q *Queue) Remove(queueID string) bool {
 	return false
 }
 
+// SkipTo drops every pending item ahead of queueID, making it the new
+// front of the queue, and returns how many items were dropped. found is
+// false (a no-op) if queueID isn't a pending item.
+func (q *Queue) SkipTo(queueID string) (removedCount int, found bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	for i, item := range q.items {
+		if item.ID == queueID {
+			q.items = q.items[i:]
+			return i, true
+		}
+	}
+	return 0, false
+}
+
 // Clear removes every pending item and returns how many were removed.
 func (q *Queue) Clear() int {
 	q.mu.Lock()

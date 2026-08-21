@@ -103,6 +103,25 @@ func (b *Broadcaster) Write(chunk []byte) {
 	}
 }
 
+// CloseAll disconnects every currently connected listener by closing their
+// channels, the same signal used for slow-listener eviction -- each
+// listener's HTTP handler goroutine observes the closed channel and ends
+// the response. Used when a station is unregistered (see Station.Stop).
+func (b *Broadcaster) CloseAll() {
+	b.mu.Lock()
+	for id, l := range b.listeners {
+		delete(b.listeners, id)
+		close(l.ch)
+	}
+	count := len(b.listeners)
+	cb := b.onCountChange
+	b.mu.Unlock()
+
+	if cb != nil {
+		cb(count)
+	}
+}
+
 // ListenerCount returns the number of currently connected listeners.
 func (b *Broadcaster) ListenerCount() int {
 	b.mu.Lock()

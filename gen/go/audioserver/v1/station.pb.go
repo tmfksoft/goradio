@@ -157,6 +157,91 @@ func (x *RegisterStationResponse) GetReRegistered() bool {
 	return false
 }
 
+// UnregisterStationRequest removes a station from the registry and stops
+// its player goroutine/broadcaster. Any listeners currently subscribed to
+// its stream are disconnected. This does not persist anywhere -- a
+// controller that re-registers the same slug afterward starts a fresh
+// station with an empty queue.
+type UnregisterStationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnregisterStationRequest) Reset() {
+	*x = UnregisterStationRequest{}
+	mi := &file_audioserver_v1_station_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnregisterStationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnregisterStationRequest) ProtoMessage() {}
+
+func (x *UnregisterStationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_station_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnregisterStationRequest.ProtoReflect.Descriptor instead.
+func (*UnregisterStationRequest) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_station_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *UnregisterStationRequest) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+type UnregisterStationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UnregisterStationResponse) Reset() {
+	*x = UnregisterStationResponse{}
+	mi := &file_audioserver_v1_station_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UnregisterStationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UnregisterStationResponse) ProtoMessage() {}
+
+func (x *UnregisterStationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_station_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UnregisterStationResponse.ProtoReflect.Descriptor instead.
+func (*UnregisterStationResponse) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_station_proto_rawDescGZIP(), []int{3}
+}
+
 var File_audioserver_v1_station_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_station_proto_rawDesc = "" +
@@ -171,7 +256,10 @@ const file_audioserver_v1_station_proto_rawDesc = "" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x1d\n" +
 	"\n" +
 	"stream_url\x18\x02 \x01(\tR\tstreamUrl\x12#\n" +
-	"\rre_registered\x18\x03 \x01(\bR\freRegisteredBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\rre_registered\x18\x03 \x01(\bR\freRegistered\".\n" +
+	"\x18UnregisterStationRequest\x12\x12\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\"\x1b\n" +
+	"\x19UnregisterStationResponseBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_station_proto_rawDescOnce sync.Once
@@ -185,10 +273,12 @@ func file_audioserver_v1_station_proto_rawDescGZIP() []byte {
 	return file_audioserver_v1_station_proto_rawDescData
 }
 
-var file_audioserver_v1_station_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_audioserver_v1_station_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_audioserver_v1_station_proto_goTypes = []any{
-	(*RegisterStationRequest)(nil),  // 0: audioserver.v1.RegisterStationRequest
-	(*RegisterStationResponse)(nil), // 1: audioserver.v1.RegisterStationResponse
+	(*RegisterStationRequest)(nil),    // 0: audioserver.v1.RegisterStationRequest
+	(*RegisterStationResponse)(nil),   // 1: audioserver.v1.RegisterStationResponse
+	(*UnregisterStationRequest)(nil),  // 2: audioserver.v1.UnregisterStationRequest
+	(*UnregisterStationResponse)(nil), // 3: audioserver.v1.UnregisterStationResponse
 }
 var file_audioserver_v1_station_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for method output_type
@@ -209,7 +299,7 @@ func file_audioserver_v1_station_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audioserver_v1_station_proto_rawDesc), len(file_audioserver_v1_station_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   2,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

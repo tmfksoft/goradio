@@ -75,6 +75,28 @@ func (s *Server) RegisterStation(ctx context.Context, req *audioserverv1.Registe
 	}, nil
 }
 
+func (s *Server) UnregisterStation(ctx context.Context, req *audioserverv1.UnregisterStationRequest) (*audioserverv1.UnregisterStationResponse, error) {
+	if req.GetSlug() == "" {
+		return nil, status.Error(codes.InvalidArgument, "slug is required")
+	}
+	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
+		return nil, err
+	}
+	if err := auth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
+
+	st, ok := s.registry.Unregister(req.GetSlug())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "station %q is not registered", req.GetSlug())
+	}
+	st.Stop()
+
+	s.log.Info("station unregistered", "slug", req.GetSlug())
+
+	return &audioserverv1.UnregisterStationResponse{}, nil
+}
+
 func (s *Server) QueueTrack(ctx context.Context, req *audioserverv1.QueueTrackRequest) (*audioserverv1.QueueTrackResponse, error) {
 	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
 		return nil, err
@@ -193,6 +215,33 @@ func (s *Server) Skip(ctx context.Context, req *audioserverv1.SkipRequest) (*aud
 	return &audioserverv1.SkipResponse{Skipped: true}, nil
 }
 
+func (s *Server) SkipTo(ctx context.Context, req *audioserverv1.SkipToRequest) (*audioserverv1.SkipToResponse, error) {
+	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
+		return nil, err
+	}
+	if err := auth.RequireWrite(ctx); err != nil {
+		return nil, err
+	}
+
+	st, ok := s.registry.Get(req.GetSlug())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "station %q is not registered", req.GetSlug())
+	}
+
+	removedCount, found := st.Queue.SkipTo(req.GetQueueId())
+	if !found {
+		return nil, status.Errorf(codes.NotFound, "queue item %q not found", req.GetQueueId())
+	}
+	if removedCount > 0 {
+		st.QueueChanged()
+	}
+
+	interruptedCurrent := st.Current() != nil
+	st.Interrupt()
+
+	return &audioserverv1.SkipToResponse{RemovedCount: int32(removedCount), InterruptedCurrent: interruptedCurrent}, nil
+}
+
 func (s *Server) GetStatus(ctx context.Context, req *audioserverv1.GetStatusRequest) (*audioserverv1.GetStatusResponse, error) {
 	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
 		return nil, err
@@ -219,6 +268,10 @@ func (s *Server) GetStatus(ctx context.Context, req *audioserverv1.GetStatusRequ
 
 	for _, item := range st.Queue.Snapshot() {
 		resp.Queue = append(resp.Queue, queuedItemToStatus(item))
+	}
+
+	for _, h := range st.History() {
+		resp.History = append(resp.History, historyEntryToStatus(h))
 	}
 
 	return resp, nil
@@ -259,5 +312,16 @@ func queuedItemToStatus(item *playback.QueuedItem) *audioserverv1.QueuedItemStat
 		Source:          item.Source,
 		Mode:            item.Mode,
 		DurationSeconds: item.DurationSeconds(),
+	}
+}
+
+func historyEntryToStatus(h *playback.HistoryEntry) *audioserverv1.HistoryEntryStatus {
+	return &audioserverv1.HistoryEntryStatus{
+		QueueId:         h.Item.ID,
+		Source:          h.Item.Source,
+		Mode:            h.Item.Mode,
+		DurationSeconds: h.Item.DurationSeconds(),
+		Reason:          h.Reason,
+		EndedAtUnixMs:   h.EndedAt.UnixMilli(),
 	}
 }

@@ -8,9 +8,12 @@ standard library and a few extra modules pre-registered:
 ```lua
 radio.args               -- CLI passthrough args, see below
 radio.register(slug, name, description [, options])
+radio.unregister()
 radio.queue(source, mode)
 radio.dequeue(queue_id)
 radio.clear_queue()
+radio.skip()
+radio.skip_to(queue_id)
 radio.status()
 radio.every(seconds, fn)
 radio.after(seconds, fn)

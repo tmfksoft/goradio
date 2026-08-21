@@ -37,10 +37,12 @@ func (e *Engine) setupLuaEnvironment() {
 
 	L.SetFuncs(radioTable, map[string]lua.LGFunction{
 		"register":         e.luaRegister,
+		"unregister":       e.luaUnregister,
 		"queue":            e.luaQueue,
 		"dequeue":          e.luaDequeue,
 		"clear_queue":      e.luaClearQueue,
 		"skip":             e.luaSkip,
+		"skip_to":          e.luaSkipTo,
 		"status":           e.luaStatus,
 		"every":            e.luaEvery,
 		"after":            e.luaAfter,
@@ -108,6 +110,33 @@ func (e *Engine) luaRegister(L *lua.LState) int {
 	tbl.RawSetString("re_registered", lua.LBool(resp.GetReRegistered()))
 	L.Push(tbl)
 	return 1
+}
+
+// radio.unregister() removes this station from the audio server: stops its
+// player, and disconnects any listeners/SubscribeEvents streams on it. It
+// does not persist anywhere -- a later radio.register() call starts a
+// fresh station with an empty queue, not a resumed one. After this call,
+// every other radio.* function that requires registration (radio.queue,
+// radio.status, etc.) raises an error until radio.register() is called
+// again; the engine's own event-stream reconnect loop also won't try to
+// auto-re-register in the meantime.
+func (e *Engine) luaUnregister(L *lua.LState) int {
+	slug := e.getRegisteredSlug()
+	if slug == "" {
+		L.RaiseError("radio.unregister called before radio.register")
+		return 0
+	}
+
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	if _, err := e.client.UnregisterStation(ctx, &audioserverv1.UnregisterStationRequest{Slug: slug}); err != nil {
+		L.RaiseError("radio.unregister failed: %v", err)
+		return 0
+	}
+	e.setUnregistered()
+
+	return 0
 }
 
 // radio.queue(source, mode) -> {queue_id, queue_position, status}
@@ -236,6 +265,39 @@ func (e *Engine) luaSkip(L *lua.LState) int {
 	return 1
 }
 
+// radio.skip_to(queue_id) -> removed_count, interrupted_current
+//
+// Jumps playback straight to a specific pending item, by queue_id (use
+// queue_id, not a position -- your own view of positions can be stale by
+// the time the call lands). Every item ahead of it in the queue is
+// dropped (removed_count), and whatever's currently playing is
+// interrupted (interrupted_current) so the target item starts
+// immediately. Raises an error if queue_id isn't a pending item -- in
+// particular you can't skip_to whatever's already playing, since it's
+// left the queue by then; use radio.skip() to interrupt the current track
+// without changing what plays after it.
+func (e *Engine) luaSkipTo(L *lua.LState) int {
+	slug := e.getRegisteredSlug()
+	if slug == "" {
+		L.RaiseError("radio.skip_to called before radio.register")
+		return 0
+	}
+	queueID := L.CheckString(1)
+
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.SkipTo(ctx, &audioserverv1.SkipToRequest{Slug: slug, QueueId: queueID})
+	if err != nil {
+		L.RaiseError("radio.skip_to failed: %v", err)
+		return 0
+	}
+
+	L.Push(lua.LNumber(resp.GetRemovedCount()))
+	L.Push(lua.LBool(resp.GetInterruptedCurrent()))
+	return 2
+}
+
 // radio.status() -> table snapshot of GetStatus
 func (e *Engine) luaStatus(L *lua.LState) int {
 	slug := e.getRegisteredSlug()
@@ -273,6 +335,12 @@ func (e *Engine) luaStatus(L *lua.LState) int {
 	}
 	tbl.RawSetString("queue", queueTbl)
 
+	historyTbl := L.NewTable()
+	for _, h := range resp.GetHistory() {
+		historyTbl.Append(historyEntryToLua(L, h))
+	}
+	tbl.RawSetString("history", historyTbl)
+
 	L.Push(tbl)
 	return 1
 }
@@ -285,6 +353,21 @@ func queuedItemToLua(L *lua.LState, item *audioserverv1.QueuedItemStatus) *lua.L
 	tbl.RawSetString("artist", lua.LString(item.GetSource().GetDisplayArtist()))
 	tbl.RawSetString("mode", lua.LString(item.GetMode().String()))
 	tbl.RawSetString("duration_seconds", lua.LNumber(item.GetDurationSeconds()))
+	return tbl
+}
+
+// historyEntryToLua mirrors queuedItemToLua, plus the reason/ended_at
+// fields unique to a finished (rather than pending) item.
+func historyEntryToLua(L *lua.LState, item *audioserverv1.HistoryEntryStatus) *lua.LTable {
+	tbl := L.NewTable()
+	tbl.RawSetString("queue_id", lua.LString(item.GetQueueId()))
+	tbl.RawSetString("location", lua.LString(item.GetSource().GetLocation()))
+	tbl.RawSetString("title", lua.LString(item.GetSource().GetDisplayTitle()))
+	tbl.RawSetString("artist", lua.LString(item.GetSource().GetDisplayArtist()))
+	tbl.RawSetString("mode", lua.LString(item.GetMode().String()))
+	tbl.RawSetString("duration_seconds", lua.LNumber(item.GetDurationSeconds()))
+	tbl.RawSetString("reason", lua.LString(item.GetReason()))
+	tbl.RawSetString("ended_at_unix_ms", lua.LNumber(item.GetEndedAtUnixMs()))
 	return tbl
 }
 

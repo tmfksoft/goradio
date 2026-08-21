@@ -51,6 +51,12 @@ type Engine struct {
 	registerMu     sync.RWMutex
 	lastRegister   registerInfo
 	registeredSlug string
+	// unregistered is set by radio.unregister() and cleared by the next
+	// radio.register(); subscribeEventsLoop checks it after a stream error
+	// so an intentional unregister doesn't get silently undone by the
+	// loop's usual "stream dropped, re-register in case server state was
+	// lost" recovery.
+	unregistered bool
 
 	onTrackStarted *lua.LFunction
 	onTrackEnded   *lua.LFunction
@@ -198,6 +204,7 @@ func (e *Engine) setRegisterInfo(slug, name, description string, lowQueueThresho
 	e.registerMu.Lock()
 	e.lastRegister = registerInfo{slug, name, description, lowQueueThreshold}
 	e.registeredSlug = slug
+	e.unregistered = false
 	e.registerMu.Unlock()
 }
 
@@ -211,6 +218,24 @@ func (e *Engine) getRegisteredSlug() string {
 	e.registerMu.RLock()
 	defer e.registerMu.RUnlock()
 	return e.registeredSlug
+}
+
+// setUnregistered records that radio.unregister() was called: it clears
+// registeredSlug (so subsequent radio.queue/status/etc calls correctly
+// raise "called before radio.register") and marks unregistered so
+// subscribeEventsLoop won't auto-re-register after the resulting stream
+// close.
+func (e *Engine) setUnregistered() {
+	e.registerMu.Lock()
+	e.registeredSlug = ""
+	e.unregistered = true
+	e.registerMu.Unlock()
+}
+
+func (e *Engine) isUnregistered() bool {
+	e.registerMu.RLock()
+	defer e.registerMu.RUnlock()
+	return e.unregistered
 }
 
 // registerWithRetry calls RegisterStation, retrying with exponential
@@ -305,6 +330,11 @@ func (e *Engine) subscribeEventsLoop(ctx context.Context, out chan<- *audioserve
 			case <-ctx.Done():
 				return
 			}
+		}
+
+		if e.isUnregistered() {
+			e.log.Info("station was unregistered, not reconnecting")
+			return
 		}
 
 		info := e.getRegisterInfo()

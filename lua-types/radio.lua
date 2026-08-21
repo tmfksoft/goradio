@@ -35,6 +35,10 @@
 ---@field mode string
 ---@field duration_seconds integer # 0 = unknown/indefinite (a live relay, or not-yet-ready)
 
+---@class RadioHistoryItem : RadioQueueItem
+---@field reason "completed"|"interrupted"
+---@field ended_at_unix_ms integer
+
 ---@class RadioStatus
 ---@field slug string
 ---@field name string
@@ -46,6 +50,7 @@
 ---@field current_track? RadioQueueItem # nil while playing silence
 ---@field elapsed_seconds? integer # how long current_track has been playing; only set when current_track is
 ---@field queue RadioQueueItem[] # pending items, in play order
+---@field history RadioHistoryItem[] # most recently finished items, oldest first, capped at a small fixed count -- seed your state from this once, then keep it current from radio.on_track_ended rather than re-polling radio.status()
 
 ---@class RadioTrackStartedEvent
 ---@field queue_id string
@@ -79,6 +84,14 @@ radio = {}
 ---@param options? RadioRegisterOptions
 ---@return RadioRegisterInfo
 function radio.register(slug, name, description, options) end
+
+--- Removes this station from the audio server: stops its player, and
+--- disconnects any listeners/SubscribeEvents streams on it. Does not
+--- persist anywhere -- a later radio.register() call starts a fresh
+--- station with an empty queue, not a resumed one. Every other radio.*
+--- function that requires registration raises an error until
+--- radio.register() is called again.
+function radio.unregister() end
 
 --- Queues something to play. Returns as soon as the item is accepted into
 --- the queue -- not once it's confirmed playable; prefetch failures
@@ -116,6 +129,19 @@ function radio.clear_queue(stop_current) end
 --- queued live stream.
 ---@return boolean skipped
 function radio.skip() end
+
+--- Jumps playback straight to a specific pending item, by queue_id (not
+--- position -- your own view of positions can be stale by the time the
+--- call lands). Every item ahead of it in the queue is dropped
+--- (removed_count), and whatever's currently playing is interrupted
+--- (interrupted_current) so the target item starts immediately. Raises an
+--- error if queue_id isn't a pending item -- you can't skip_to whatever's
+--- already playing, since it's left the queue by then; use radio.skip()
+--- for that instead.
+---@param queue_id string
+---@return integer removed_count
+---@return boolean interrupted_current
+function radio.skip_to(queue_id) end
 
 --- An on-demand snapshot of the registered station's current state.
 ---@return RadioStatus

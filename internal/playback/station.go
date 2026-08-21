@@ -44,6 +44,32 @@ type Station struct {
 	// moment it's called — never a clip queued moments later.
 	streamCancelMu sync.Mutex
 	streamCancel   context.CancelFunc
+
+	// runCancelMu guards runCancel, which cancels the ctx passed to Run
+	// (see player.go), stopping the player goroutine entirely. Set by
+	// whoever starts the goroutine (registry.Register's onNew callback);
+	// used by Stop() on unregistration.
+	runCancelMu sync.Mutex
+	runCancel   context.CancelFunc
+
+	// historyMu guards history, the bounded list of most recently finished
+	// queue items (see RecordHistory/History). Written by the player
+	// goroutine (player.go), read by GetStatus (grpcapi).
+	historyMu sync.Mutex
+	history   []*HistoryEntry
+}
+
+// historyMaxEntries caps how many finished items Station.History retains --
+// enough to seed a dashboard's recently-played view on load, not a full
+// play log (see GetStatusResponse.history's doc: keep it current afterward
+// from TRACK_ENDED events instead of re-polling).
+const historyMaxEntries = 20
+
+// HistoryEntry is one finished queue item, as recorded by RecordHistory.
+type HistoryEntry struct {
+	Item    *QueuedItem
+	Reason  string // "completed" or "interrupted", same as TrackEndedPayload.Reason
+	EndedAt time.Time
 }
 
 // NewStation constructs a Station and wires its Broadcaster's listener
@@ -121,6 +147,32 @@ func (s *Station) setStreamCancel(cancel context.CancelFunc) {
 	s.streamCancelMu.Unlock()
 }
 
+// SetRunCancel registers the cancel func for this station's Run goroutine,
+// so a later Stop() call can shut it down. The caller that starts the
+// goroutine (e.g. StationStarter) is responsible for calling this with the
+// cancel func of the context it passed to Run.
+func (s *Station) SetRunCancel(cancel context.CancelFunc) {
+	s.runCancelMu.Lock()
+	s.runCancel = cancel
+	s.runCancelMu.Unlock()
+}
+
+// Stop cancels this station's Run goroutine, if one was started (see
+// SetRunCancel), causing it to exit after its current chunk/clip, and
+// disconnects every currently connected HTTP listener and SubscribeEvents
+// stream so they don't hang open indefinitely against a station that will
+// never produce audio or events again.
+func (s *Station) Stop() {
+	s.runCancelMu.Lock()
+	cancel := s.runCancel
+	s.runCancelMu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	s.Broadcaster.CloseAll()
+	s.Events.CloseAll()
+}
+
 func (s *Station) Uptime() time.Duration {
 	return time.Since(s.RegisteredAt)
 }
@@ -157,6 +209,28 @@ func (s *Station) PublishTrackStarted(item *QueuedItem) {
 
 func (s *Station) PublishTrackEnded(queueID, reason string) {
 	s.Events.Publish(newTrackEndedEvent(s.Slug, queueID, reason))
+}
+
+// RecordHistory appends a finished queue item to this station's bounded
+// history, evicting the oldest entry past historyMaxEntries. Only
+// player.go's Run loop calls this, right after a track ends.
+func (s *Station) RecordHistory(item *QueuedItem, reason string) {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	s.history = append(s.history, &HistoryEntry{Item: item, Reason: reason, EndedAt: time.Now()})
+	if len(s.history) > historyMaxEntries {
+		s.history = s.history[len(s.history)-historyMaxEntries:]
+	}
+}
+
+// History returns a copy of the most recently finished queue items, oldest
+// first, for GetStatus.
+func (s *Station) History() []*HistoryEntry {
+	s.historyMu.Lock()
+	defer s.historyMu.Unlock()
+	out := make([]*HistoryEntry, len(s.history))
+	copy(out, s.history)
+	return out
 }
 
 func (s *Station) PublishError(message, code string) {

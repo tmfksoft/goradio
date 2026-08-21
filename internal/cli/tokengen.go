@@ -21,7 +21,7 @@ func TokenGen(args []string) error {
 
 	slugs := fs.Args()
 	if len(slugs) == 0 {
-		return fmt.Errorf("at least one station slug is required, e.g. radio tokengen -secret ... myfm otherfm")
+		return fmt.Errorf("at least one station slug is required, e.g. radio tokengen -secret ... myfm otherfm (glob patterns like '*' or 'test-*' are also accepted)")
 	}
 	if *secret == "" {
 		return fmt.Errorf("-secret is required")

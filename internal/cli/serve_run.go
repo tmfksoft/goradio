@@ -37,7 +37,9 @@ type stationStarter struct {
 func (d *stationStarter) StartStation(st *playback.Station) {
 	cfg := d.playerCfg
 	cfg.SilencePath = d.silencePath
-	go st.Run(context.Background(), d.log, cfg)
+	ctx, cancel := context.WithCancel(context.Background())
+	st.SetRunCancel(cancel)
+	go st.Run(ctx, d.log, cfg)
 }
 
 func runServe(log *slog.Logger, cfg *config.AudioServerConfig) error {

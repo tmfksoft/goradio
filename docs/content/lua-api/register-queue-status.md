@@ -40,6 +40,24 @@ process while it's waiting. If it fails for a **permanent** reason instead
 this slug — it raises a Lua error immediately rather than retrying forever,
 since no amount of retrying fixes a bad token.
 
+## `radio.unregister()`
+
+Removes this station from the audio server: stops its player, and
+disconnects any listeners on its stream and any open `radio.on_*` event
+subscription.
+
+```lua
+radio.unregister()
+```
+
+This does not persist anywhere — a later `radio.register()` call starts a
+fresh station with an empty queue, not a resumed one. After calling this,
+every other `radio.*` function that requires registration (`radio.queue`,
+`radio.status`, `radio.skip`, ...) raises a Lua error until
+`radio.register()` is called again — and the engine's automatic reconnect
+logic (see above) won't try to re-register on your behalf in the meantime,
+since this was an intentional unregister, not a dropped connection.
+
 ## `radio.queue(source, mode)`
 
 Queues something to play.
@@ -178,6 +196,30 @@ way to end a "track" that has no natural end — most notably a queued
 everything pending too; `radio.skip()` is the one to reach for when you
 just want to move on to whatever's next.
 
+## `radio.skip_to(queue_id)`
+
+Jumps playback straight to a specific pending item, dropping everything
+queued ahead of it and interrupting whatever's currently playing so the
+target item starts immediately.
+
+```lua
+local a = radio.queue("a.mp3")
+local b = radio.queue("b.mp3")
+local c = radio.queue("c.mp3")
+
+local removed_count, interrupted_current = radio.skip_to(c.queue_id)
+-- removed_count == 2 (a and b were dropped)
+-- interrupted_current == true if something was already playing
+```
+
+Addressed by `queue_id`, not position — your own view of positions can be
+stale by the time the call lands (something could finish or get queued in
+between), but a `queue_id` can't drift out from under you. Raises a Lua
+error if `queue_id` isn't a pending item — in particular, you can't
+`skip_to` whatever's already playing, since it's already left the queue by
+then; use plain [`radio.skip()`](#radioskip) to interrupt the current
+track without changing what plays after it.
+
 ## `radio.status()`
 
 An on-demand snapshot of the registered station's current state — a
@@ -199,6 +241,10 @@ end
 for i, item in ipairs(status.queue) do
   print(i, item.queue_id, item.location, item.title, item.artist, item.mode, item.duration_seconds)
 end
+
+for i, item in ipairs(status.history) do
+  print(i, item.queue_id, item.location, item.reason, item.ended_at_unix_ms)
+end
 ```
 
 `queue` is the full list of pending items in play order (each shaped like
@@ -211,7 +257,16 @@ need to render a progress bar — treat `duration_seconds == 0` as
 "indefinite" rather than dividing by zero, which is always the case for a
 queued live stream.
 
-Use this for polling; use [`radio.on_track_started`/`radio.on_track_ended`](events-and-scheduling.md)
-for reacting to changes in real time without polling, or
-[`radio.on_queue_low`](events-and-scheduling.md#radioon_queue_lowfn) if all
-you need is "tell me when to queue more."
+`history` is the most recently finished items, oldest first, capped at a
+small fixed count (currently 20) — each entry adds `reason`
+(`"completed"`/`"interrupted"`) and `ended_at_unix_ms` on top of the same
+shape as `queue`'s items. To requeue something from history, just call
+`radio.queue` again with its `location`/`title`/`artist` — there's no
+separate "requeue" call.
+
+`status()` and its `history` field are meant for a one-shot fetch (e.g.
+right after `radio.register`, to see what was already playing/queued from
+before a restart) — use [`radio.on_track_started`/`radio.on_track_ended`](events-and-scheduling.md)
+to keep your own view of `queue`/`history` current after that without
+polling, or [`radio.on_queue_low`](events-and-scheduling.md#radioon_queue_lowfn)
+if all you need is "tell me when to queue more."
