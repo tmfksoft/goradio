@@ -57,7 +57,7 @@ func (s *Server) RegisterStation(ctx context.Context, req *audioserverv1.Registe
 		return nil, err
 	}
 
-	st, reRegistered := s.registry.Register(req.GetSlug(), req.GetName(), req.GetDescription(), func(newStation *playback.Station) {
+	st, reRegistered := s.registry.Register(req.GetSlug(), req.GetName(), req.GetDescription(), req.GetLowQueueThreshold(), func(newStation *playback.Station) {
 		if s.starter != nil {
 			s.starter.StartStation(newStation)
 		}
@@ -110,13 +110,72 @@ func (s *Server) QueueTrack(ctx context.Context, req *audioserverv1.QueueTrackRe
 		position = st.Queue.Append(item)
 	}
 
-	st.PublishQueueUpdated()
+	st.QueueChanged()
 
 	return &audioserverv1.QueueTrackResponse{
 		QueueId:       item.ID,
 		QueuePosition: int32(position),
 		Status:        "queued",
 	}, nil
+}
+
+func (s *Server) RemoveFromQueue(ctx context.Context, req *audioserverv1.RemoveFromQueueRequest) (*audioserverv1.RemoveFromQueueResponse, error) {
+	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
+		return nil, err
+	}
+
+	st, ok := s.registry.Get(req.GetSlug())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "station %q is not registered", req.GetSlug())
+	}
+
+	removed := st.Queue.Remove(req.GetQueueId())
+	if removed {
+		st.QueueChanged()
+	}
+
+	return &audioserverv1.RemoveFromQueueResponse{Removed: removed}, nil
+}
+
+func (s *Server) ClearQueue(ctx context.Context, req *audioserverv1.ClearQueueRequest) (*audioserverv1.ClearQueueResponse, error) {
+	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
+		return nil, err
+	}
+
+	st, ok := s.registry.Get(req.GetSlug())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "station %q is not registered", req.GetSlug())
+	}
+
+	removedCount := st.Queue.Clear()
+	if removedCount > 0 {
+		st.QueueChanged()
+	}
+
+	stoppedCurrent := false
+	if req.GetStopCurrent() && st.Current() != nil {
+		st.Interrupt()
+		stoppedCurrent = true
+	}
+
+	return &audioserverv1.ClearQueueResponse{RemovedCount: int32(removedCount), StoppedCurrent: stoppedCurrent}, nil
+}
+
+func (s *Server) Skip(ctx context.Context, req *audioserverv1.SkipRequest) (*audioserverv1.SkipResponse, error) {
+	if err := auth.RequireSlug(ctx, req.GetSlug()); err != nil {
+		return nil, err
+	}
+
+	st, ok := s.registry.Get(req.GetSlug())
+	if !ok {
+		return nil, status.Errorf(codes.NotFound, "station %q is not registered", req.GetSlug())
+	}
+
+	if st.Current() == nil {
+		return &audioserverv1.SkipResponse{Skipped: false}, nil
+	}
+	st.Interrupt()
+	return &audioserverv1.SkipResponse{Skipped: true}, nil
 }
 
 func (s *Server) GetStatus(ctx context.Context, req *audioserverv1.GetStatusRequest) (*audioserverv1.GetStatusResponse, error) {

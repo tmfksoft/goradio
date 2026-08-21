@@ -1,5 +1,6 @@
-// Package audiosource resolves a QueueTrack's TrackSource into a local
-// filesystem path ready to hand to the transcoder, defending against path
+// Package audiosource resolves a QueueTrack's TrackSource into either a
+// local filesystem path ready to hand to the transcoder, or a live stream
+// URL — auto-detected from the HTTP response, defending against path
 // traversal for local files.
 package audiosource
 
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
 	"github.com/tmfksoft/goradio/internal/fetch"
@@ -24,26 +26,52 @@ type Config struct {
 	DownloadDir string
 }
 
-// Resolved is a source ready to hand to the transcoder.
+// Resolved is a source ready to hand to the transcoder, or a live stream
+// ready to hand to the player's live-relay path.
 type Resolved struct {
-	// Path to the actual bytes to transcode.
+	// IsLive is true if this HTTP(S) source was auto-detected as a
+	// continuous live stream (e.g. an Icecast/Shoutcast mountpoint) rather
+	// than a finite downloadable file — see fetch.IsLiveStream. When true,
+	// only LiveURL is set; the source bypasses the transcode cache
+	// entirely and is instead relayed continuously (internal/playback's
+	// live-relay player path).
+	IsLive  bool
+	LiveURL string
+
+	// Path to the actual bytes to transcode. Unset when IsLive.
 	Path string
 	// CacheKey stably identifies this source's content for the transcode
 	// cache; the cache is responsible for hashing it into a filename.
+	// Unset when IsLive.
 	CacheKey string
 	// Downloaded is true if Path is a temp file the caller must remove
 	// once done with it (false for local files, which are never deleted).
 	Downloaded bool
 }
 
-// Resolve resolves src into a Resolved, downloading it first if it's an
-// HTTP(S) URL.
-func Resolve(ctx context.Context, cfg Config, src *audioserverv1.TrackSource) (Resolved, error) {
+// Resolver resolves TrackSources, remembering (for the life of the
+// process) which HTTP(S) URLs were classified as live streams so repeat
+// QueueTrack calls for the same URL skip re-classifying it.
+type Resolver struct {
+	cfg Config
+
+	liveMu    sync.RWMutex
+	liveCache map[string]bool // url -> isLive
+}
+
+// NewResolver constructs a Resolver.
+func NewResolver(cfg Config) *Resolver {
+	return &Resolver{cfg: cfg, liveCache: make(map[string]bool)}
+}
+
+// Resolve resolves src, downloading and classifying it first if it's an
+// HTTP(S) URL not already known to be live.
+func (r *Resolver) Resolve(ctx context.Context, src *audioserverv1.TrackSource) (Resolved, error) {
 	switch src.GetType() {
 	case audioserverv1.TrackSourceType_TRACK_SOURCE_TYPE_LOCAL_FILE:
-		return resolveLocal(cfg, src.GetLocation())
+		return resolveLocal(r.cfg, src.GetLocation())
 	case audioserverv1.TrackSourceType_TRACK_SOURCE_TYPE_HTTP_URL:
-		return resolveHTTP(ctx, cfg, src.GetLocation())
+		return r.resolveHTTP(ctx, src.GetLocation())
 	default:
 		return Resolved{}, fmt.Errorf("track source has unspecified type")
 	}
@@ -83,16 +111,51 @@ func resolveLocal(cfg Config, location string) (Resolved, error) {
 	return Resolved{Path: full, CacheKey: key}, nil
 }
 
-func resolveHTTP(ctx context.Context, cfg Config, rawURL string) (Resolved, error) {
+func (r *Resolver) resolveHTTP(ctx context.Context, rawURL string) (Resolved, error) {
 	if rawURL == "" {
 		return Resolved{}, fmt.Errorf("http url location is empty")
 	}
 
-	path, err := fetch.Download(ctx, rawURL, cfg.MaxDownloadBytes, cfg.DownloadDir)
+	if isLive, known := r.getLiveCache(rawURL); known {
+		if isLive {
+			return Resolved{IsLive: true, LiveURL: rawURL}, nil
+		}
+		// Known finite: fall through to a normal download below (no point
+		// caching "not live" beyond avoiding a second classification --
+		// the transcode cache already dedupes repeat downloads by URL).
+	}
+
+	resp, err := fetch.Open(ctx, rawURL)
+	if err != nil {
+		return Resolved{}, err
+	}
+	defer resp.Body.Close()
+
+	isLive := fetch.IsLiveStream(resp)
+	r.setLiveCache(rawURL, isLive)
+
+	if isLive {
+		return Resolved{IsLive: true, LiveURL: rawURL}, nil
+	}
+
+	path, err := fetch.SaveToFile(resp, r.cfg.MaxDownloadBytes, r.cfg.DownloadDir)
 	if err != nil {
 		return Resolved{}, err
 	}
 
 	key := fmt.Sprintf("url:%s", rawURL)
 	return Resolved{Path: path, CacheKey: key, Downloaded: true}, nil
+}
+
+func (r *Resolver) getLiveCache(url string) (isLive bool, known bool) {
+	r.liveMu.RLock()
+	defer r.liveMu.RUnlock()
+	isLive, known = r.liveCache[url]
+	return isLive, known
+}
+
+func (r *Resolver) setLiveCache(url string, isLive bool) {
+	r.liveMu.Lock()
+	defer r.liveMu.Unlock()
+	r.liveCache[url] = isLive
 }

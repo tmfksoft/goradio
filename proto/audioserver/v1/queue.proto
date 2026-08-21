@@ -45,3 +45,54 @@ message QueueTrackResponse {
   int32 queue_position = 2;
   string status = 3;
 }
+
+// RemoveFromQueueRequest removes one still-pending (not yet playing) item.
+// It cannot remove whatever is currently playing -- that item has already
+// left the queue; use QueueTrack with QUEUE_MODE_PLAY_NOW_INTERRUPT if you
+// want to cut the current track short instead.
+message RemoveFromQueueRequest {
+  string slug = 1;
+  string queue_id = 2;
+}
+
+message RemoveFromQueueResponse {
+  // False if queue_id wasn't found (already played, already removed, or
+  // never existed) -- not an error, just a no-op.
+  bool removed = 1;
+}
+
+// ClearQueueRequest removes every pending item. Like RemoveFromQueue, by
+// default it does not touch whatever is currently playing -- set
+// stop_current to also interrupt it.
+message ClearQueueRequest {
+  string slug = 1;
+  // If true, also interrupt whatever is currently playing. Since the
+  // queue was just cleared, playback falls back to silence rather than
+  // starting some other track -- there's nothing left to replace it with.
+  // Typical use: a controller restarting wants a clean slate (stop
+  // whatever stale item was playing, drop everything pending) rather than
+  // letting the old current track finish out.
+  bool stop_current = 2;
+}
+
+message ClearQueueResponse {
+  int32 removed_count = 1;
+  // True if a currently-playing track was interrupted as a result of
+  // stop_current (false if stop_current was false, or the station was
+  // already playing silence with nothing to interrupt).
+  bool stopped_current = 2;
+}
+
+// SkipRequest interrupts whatever is currently playing, leaving the rest
+// of the queue untouched -- the player immediately moves on to the next
+// pending item (or falls back to silence if the queue is empty). This is
+// the only way to end a track/relay that doesn't have a natural end
+// (e.g. a queued live stream, which plays until skipped or interrupted).
+message SkipRequest {
+  string slug = 1;
+}
+
+message SkipResponse {
+  // False if there was nothing playing to skip (already silence).
+  bool skipped = 1;
+}

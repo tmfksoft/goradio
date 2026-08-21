@@ -51,12 +51,26 @@ type Engine struct {
 	onTrackStarted *lua.LFunction
 	onTrackEnded   *lua.LFunction
 	onError        *lua.LFunction
+	onQueueLow     *lua.LFunction
 
 	timers []*timerEntry
+
+	// redisMsgCh carries pub/sub messages from background subscription
+	// goroutines (see redismodule.go) into Run's select loop, so their
+	// callbacks — like every other Lua callback — run on the single
+	// goroutine that owns the Lua state.
+	redisMsgCh chan redisCallback
+}
+
+type redisCallback struct {
+	fn      *lua.LFunction
+	channel string
+	payload string
 }
 
 type registerInfo struct {
 	slug, name, description string
+	lowQueueThreshold       int32
 }
 
 type timerEntry struct {
@@ -74,6 +88,7 @@ func NewEngine(log *slog.Logger, cfg *config.StationConfig, scriptPath string, s
 		scriptPath: scriptPath,
 		scriptArgs: scriptArgs,
 		L:          lua.NewState(),
+		redisMsgCh: make(chan redisCallback, 32),
 	}
 }
 
@@ -112,6 +127,8 @@ func (e *Engine) Run(ctx context.Context) error {
 			return nil
 		case ev := <-eventsCh:
 			e.dispatchEvent(ev)
+		case msg := <-e.redisMsgCh:
+			e.callLua(msg.fn, lua.LString(msg.payload), lua.LString(msg.channel))
 		case <-ticker.C:
 			e.runDueTimers()
 		}
@@ -132,9 +149,9 @@ func (e *Engine) connect() error {
 	return nil
 }
 
-func (e *Engine) setRegisterInfo(slug, name, description string) {
+func (e *Engine) setRegisterInfo(slug, name, description string, lowQueueThreshold int32) {
 	e.registerMu.Lock()
-	e.lastRegister = registerInfo{slug, name, description}
+	e.lastRegister = registerInfo{slug, name, description, lowQueueThreshold}
 	e.registeredSlug = slug
 	e.registerMu.Unlock()
 }
@@ -162,16 +179,17 @@ func (e *Engine) getRegisteredSlug() string {
 // (PermissionDenied), or a bad request (InvalidArgument) — return
 // immediately instead of retrying forever, since nothing changes those
 // outcomes short of the operator editing config and restarting.
-func (e *Engine) registerWithRetry(ctx context.Context, slug, name, description string) (*audioserverv1.RegisterStationResponse, error) {
+func (e *Engine) registerWithRetry(ctx context.Context, slug, name, description string, lowQueueThreshold int32) (*audioserverv1.RegisterStationResponse, error) {
 	backoff := time.Second
 	const maxBackoff = 30 * time.Second
 
 	for {
 		rctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 		resp, err := e.client.RegisterStation(rctx, &audioserverv1.RegisterStationRequest{
-			Slug:        slug,
-			Name:        name,
-			Description: description,
+			Slug:              slug,
+			Name:              name,
+			Description:       description,
+			LowQueueThreshold: lowQueueThreshold,
 		})
 		cancel()
 		if err == nil {
@@ -245,7 +263,7 @@ func (e *Engine) subscribeEventsLoop(ctx context.Context, out chan<- *audioserve
 		}
 
 		info := e.getRegisterInfo()
-		if _, err := e.registerWithRetry(ctx, info.slug, info.name, info.description); err != nil {
+		if _, err := e.registerWithRetry(ctx, info.slug, info.name, info.description, info.lowQueueThreshold); err != nil {
 			return
 		}
 		if !e.sleepBackoff(ctx, &backoff, maxBackoff) {
@@ -323,6 +341,14 @@ func (e *Engine) dispatchEvent(ev *audioserverv1.StationEvent) {
 			tbl.RawSetString("message", lua.LString(p.GetMessage()))
 			tbl.RawSetString("code", lua.LString(p.GetCode()))
 			e.callLua(e.onError, tbl)
+		}
+	case audioserverv1.EventType_EVENT_TYPE_QUEUE_LOW:
+		if e.onQueueLow != nil {
+			p := ev.GetQueueLow()
+			tbl := e.L.NewTable()
+			tbl.RawSetString("queue_length", lua.LNumber(p.GetQueueLength()))
+			tbl.RawSetString("threshold", lua.LNumber(p.GetThreshold()))
+			e.callLua(e.onQueueLow, tbl)
 		}
 	default:
 		// QUEUE_UPDATED, LISTENER_COUNT_CHANGED, SILENCE_STARTED/ENDED have

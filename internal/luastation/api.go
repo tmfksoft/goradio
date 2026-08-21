@@ -29,32 +29,51 @@ func (e *Engine) setupLuaEnvironment() {
 	L.SetFuncs(radioTable, map[string]lua.LGFunction{
 		"register":         e.luaRegister,
 		"queue":            e.luaQueue,
+		"dequeue":          e.luaDequeue,
+		"clear_queue":      e.luaClearQueue,
+		"skip":             e.luaSkip,
 		"status":           e.luaStatus,
 		"every":            e.luaEvery,
 		"after":            e.luaAfter,
 		"on_track_started": e.luaOnTrackStarted,
 		"on_track_ended":   e.luaOnTrackEnded,
 		"on_error":         e.luaOnError,
+		"on_queue_low":     e.luaOnQueueLow,
 	})
 
 	L.SetGlobal("radio", radioTable)
 
-	RegisterHTTPModule(L)
-	RegisterSQLModule(L)
+	e.RegisterHTTPModule(L)
+	e.RegisterSQLModule(L)
+	e.RegisterRedisModule(L)
 }
 
-// radio.register(slug, name, description) -> {slug, stream_url, re_registered}
+// radio.register(slug, name, description [, options]) -> {slug, stream_url, re_registered}
+//
+// options is an optional table; currently the only recognized field is
+// low_queue_threshold (number): if set > 0, the audio server fires
+// EVENT_TYPE_QUEUE_LOW (see radio.on_queue_low) once, edge-triggered,
+// whenever the pending queue length drops to or below it.
 func (e *Engine) luaRegister(L *lua.LState) int {
 	slug := L.CheckString(1)
 	name := L.OptString(2, slug)
 	description := L.OptString(3, "")
 
-	resp, err := e.registerWithRetry(e.ctx, slug, name, description)
+	var lowQueueThreshold int32
+	if L.GetTop() >= 4 {
+		if opts, ok := L.Get(4).(*lua.LTable); ok {
+			if n, ok := opts.RawGetString("low_queue_threshold").(lua.LNumber); ok {
+				lowQueueThreshold = int32(n)
+			}
+		}
+	}
+
+	resp, err := e.registerWithRetry(e.ctx, slug, name, description, lowQueueThreshold)
 	if err != nil {
 		L.RaiseError("radio.register failed: %v", err)
 		return 0
 	}
-	e.setRegisterInfo(slug, name, description)
+	e.setRegisterInfo(slug, name, description, lowQueueThreshold)
 
 	tbl := L.NewTable()
 	tbl.RawSetString("slug", lua.LString(resp.GetSlug()))
@@ -104,6 +123,92 @@ func (e *Engine) luaQueue(L *lua.LState) int {
 	return 1
 }
 
+// radio.dequeue(queue_id) -> removed (bool)
+//
+// Removes one still-pending item. Returns false (not an error) if
+// queue_id wasn't found -- it may already have started playing, already
+// been removed, or never existed. Cannot remove whatever is currently
+// playing; use radio.queue(source, "PLAY_NOW_INTERRUPT") for that.
+func (e *Engine) luaDequeue(L *lua.LState) int {
+	slug := e.getRegisteredSlug()
+	if slug == "" {
+		L.RaiseError("radio.dequeue called before radio.register")
+		return 0
+	}
+	queueID := L.CheckString(1)
+
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.RemoveFromQueue(ctx, &audioserverv1.RemoveFromQueueRequest{Slug: slug, QueueId: queueID})
+	if err != nil {
+		L.RaiseError("radio.dequeue failed: %v", err)
+		return 0
+	}
+
+	L.Push(lua.LBool(resp.GetRemoved()))
+	return 1
+}
+
+// radio.clear_queue([stop_current]) -> removed_count, stopped_current
+//
+// Removes every pending item. By default (stop_current omitted or false)
+// this does not touch whatever is currently playing. Pass stop_current =
+// true to also interrupt it -- since the queue is now empty, playback
+// falls back to silence rather than jumping to some other track. This is
+// the usual "clean restart" pattern: call radio.clear_queue(true) when
+// your script starts, so a stale queue/track from before a restart
+// doesn't keep playing underneath your fresh state.
+func (e *Engine) luaClearQueue(L *lua.LState) int {
+	slug := e.getRegisteredSlug()
+	if slug == "" {
+		L.RaiseError("radio.clear_queue called before radio.register")
+		return 0
+	}
+	stopCurrent := L.OptBool(1, false)
+
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.ClearQueue(ctx, &audioserverv1.ClearQueueRequest{Slug: slug, StopCurrent: stopCurrent})
+	if err != nil {
+		L.RaiseError("radio.clear_queue failed: %v", err)
+		return 0
+	}
+
+	L.Push(lua.LNumber(resp.GetRemovedCount()))
+	L.Push(lua.LBool(resp.GetStoppedCurrent()))
+	return 2
+}
+
+// radio.skip() -> skipped (bool)
+//
+// Interrupts whatever is currently playing, leaving the rest of the queue
+// untouched -- playback immediately moves on to the next pending item (or
+// silence if the queue is empty). Returns false if nothing was playing to
+// skip. This is the only way to end a "track" with no natural end, such
+// as a queued live stream (see radio.queue) -- it plays until skipped or
+// interrupted.
+func (e *Engine) luaSkip(L *lua.LState) int {
+	slug := e.getRegisteredSlug()
+	if slug == "" {
+		L.RaiseError("radio.skip called before radio.register")
+		return 0
+	}
+
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.Skip(ctx, &audioserverv1.SkipRequest{Slug: slug})
+	if err != nil {
+		L.RaiseError("radio.skip failed: %v", err)
+		return 0
+	}
+
+	L.Push(lua.LBool(resp.GetSkipped()))
+	return 1
+}
+
 // radio.status() -> table snapshot of GetStatus
 func (e *Engine) luaStatus(L *lua.LState) int {
 	slug := e.getRegisteredSlug()
@@ -129,8 +234,29 @@ func (e *Engine) luaStatus(L *lua.LState) int {
 	tbl.RawSetString("listener_count", lua.LNumber(resp.GetListenerCount()))
 	tbl.RawSetString("uptime_seconds", lua.LNumber(resp.GetUptimeSeconds()))
 	tbl.RawSetString("queue_length", lua.LNumber(len(resp.GetQueue())))
+
+	if cur := resp.GetCurrentTrack(); cur != nil {
+		tbl.RawSetString("current_track", queuedItemToLua(L, cur))
+	}
+
+	queueTbl := L.NewTable()
+	for _, item := range resp.GetQueue() {
+		queueTbl.Append(queuedItemToLua(L, item))
+	}
+	tbl.RawSetString("queue", queueTbl)
+
 	L.Push(tbl)
 	return 1
+}
+
+func queuedItemToLua(L *lua.LState, item *audioserverv1.QueuedItemStatus) *lua.LTable {
+	tbl := L.NewTable()
+	tbl.RawSetString("queue_id", lua.LString(item.GetQueueId()))
+	tbl.RawSetString("location", lua.LString(item.GetSource().GetLocation()))
+	tbl.RawSetString("title", lua.LString(item.GetSource().GetDisplayTitle()))
+	tbl.RawSetString("artist", lua.LString(item.GetSource().GetDisplayArtist()))
+	tbl.RawSetString("mode", lua.LString(item.GetMode().String()))
+	return tbl
 }
 
 // radio.every(seconds, fn): calls fn repeatedly, every `seconds`.
@@ -162,6 +288,14 @@ func (e *Engine) luaOnTrackEnded(L *lua.LState) int {
 
 func (e *Engine) luaOnError(L *lua.LState) int {
 	e.onError = L.CheckFunction(1)
+	return 0
+}
+
+// radio.on_queue_low(fn): fn is called (once, edge-triggered) whenever the
+// pending queue length drops to or below the low_queue_threshold given to
+// radio.register. No-op unless that threshold was set > 0.
+func (e *Engine) luaOnQueueLow(L *lua.LState) int {
+	e.onQueueLow = L.CheckFunction(1)
 	return 0
 }
 

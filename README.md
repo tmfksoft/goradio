@@ -9,8 +9,8 @@ sharing one `radio` binary:
   looping silence clip whenever a station's queue is empty.
 - **`radio station`** — a station controller: runs one Lua script per
   process, which decides what to queue on that station via a small `radio`
-  API, with full HTTP and MySQL access available to the script
-  (`require("http")`, `require("sql")`).
+  API, with full HTTP, MySQL, and Redis access available to the script
+  (`require("http")`, `require("sql")`, `require("redis")`).
 
 The two talk over a JWT-authenticated gRPC control plane
 (`proto/audioserver/v1`), so a controller doesn't have to be Lua — anything
@@ -86,19 +86,37 @@ richer station roster (songs, idents, DJ chatter, callers, ad rotation) on
 top of, in Lua, without needing to touch Go:
 
 ```lua
-local info = radio.register(slug, name, description)
+local info = radio.register(slug, name, description [, {low_queue_threshold = 3}])
 radio.queue(source, mode)      -- source: path/URL string or {type=,location=,title=,artist=}
                                 -- mode: "APPEND" (default) | "PLAY_NEXT" | "PLAY_NOW_INTERRUPT"
-local status = radio.status()
+                                -- an http(s):// source is auto-detected as a file or a live
+                                -- stream (e.g. Icecast) and relayed continuously if live
+radio.dequeue(queue_id)        -- remove one still-pending item
+radio.clear_queue([stop_current]) -- remove all pending items, optionally interrupt what's playing too
+radio.skip()                   -- interrupt current playback only, leaving the queue intact
+local status = radio.status()  -- includes status.queue (full item list) and status.current_track
 radio.every(seconds, fn)
 radio.after(seconds, fn)
 radio.on_track_started(fn)
 radio.on_track_ended(fn)
 radio.on_error(fn)
+radio.on_queue_low(fn)         -- fires (edge-triggered) at/below low_queue_threshold
 radio.args                     -- array of CLI args after --config/--script
+
+local http  = require("http")   -- full, unrestricted HTTP client
+local sql   = require("sql")    -- full MySQL access via database/sql
+local redis = require("redis")  -- full Redis access: KV, lists, pub/sub
 ```
 
-See `testdata/station-scripts/example.lua` for a working reference script.
+See `testdata/station-scripts/example.lua` for a working reference script,
+and the [docs](https://tmfksoft.github.io/goradio/lua-api/) for the full
+API reference.
+
+**VS Code autocomplete/type-checking:** open this repo (or a release
+archive) as your workspace and install the **Lua** extension
+(`sumneko.lua`) — `.luarc.json` and `lua-types/` are already set up to
+give you real intellisense for `radio`/`http`/`sql`/`redis`. See
+[Editor Support](https://tmfksoft.github.io/goradio/lua-api/editor-support/).
 
 ## Writing a controller in another language
 

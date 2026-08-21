@@ -11,6 +11,12 @@ message RegisterStationRequest {
   string slug = 1;
   string name = 2;
   string description = 3;
+  // If > 0, the server fires an EVENT_TYPE_QUEUE_LOW event (once, edge-
+  // triggered) whenever the pending queue length drops to or below this
+  // threshold, so the controller doesn't have to poll GetStatus to know
+  // when to queue more. 0 (the default) disables the event. Updated in
+  // place on re-registration, same as name/description.
+  int32 low_queue_threshold = 4;
 }
 
 message RegisterStationResponse {

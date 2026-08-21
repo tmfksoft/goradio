@@ -26,6 +26,13 @@ type Station struct {
 	current   atomic.Pointer[QueuedItem]
 	isSilence atomic.Bool
 
+	// lowQueueThreshold and wasQueueLow implement the edge-triggered
+	// EVENT_TYPE_QUEUE_LOW event: 0 disables it, otherwise QueueChanged
+	// fires it once when the queue length drops to or below the
+	// threshold, and won't fire again until it rises back above and dips.
+	lowQueueThreshold atomic.Int32
+	wasQueueLow       atomic.Bool
+
 	// streamCancelMu guards streamCancel, which cancels whichever
 	// streamFile call (see player.go) is currently in flight, if any. It is
 	// set at the start of each streamFile call and cleared when it returns,
@@ -55,13 +62,15 @@ func NewStation(slug, name, description string) *Station {
 	return s
 }
 
-// SetMetadata updates the station's display name/description in place,
-// used when a controller re-registers an already-running station.
-func (s *Station) SetMetadata(name, description string) {
+// SetMetadata updates the station's display name/description/low-queue
+// threshold in place, used both on first registration and when a
+// controller re-registers an already-running station.
+func (s *Station) SetMetadata(name, description string, lowQueueThreshold int32) {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.name = name
 	s.description = description
+	s.mu.Unlock()
+	s.lowQueueThreshold.Store(lowQueueThreshold)
 }
 
 func (s *Station) Name() string {
@@ -116,8 +125,26 @@ func (s *Station) Uptime() time.Duration {
 // the player loop, transcode prefetch) raise events for this station,
 // keeping StationEvent's wire shape encapsulated in this package.
 
-func (s *Station) PublishQueueUpdated() {
-	s.Events.Publish(newQueueUpdatedEvent(s.Slug, s.Queue.Len()))
+// QueueChanged publishes QUEUE_UPDATED, and additionally publishes the
+// edge-triggered QUEUE_LOW event if a low-queue threshold is configured
+// (see RegisterStationRequest.low_queue_threshold) and the queue length
+// just crossed at or below it. Call this after any operation that changes
+// the queue's length: QueueTrack, RemoveFromQueue, ClearQueue, and the
+// player consuming an item.
+func (s *Station) QueueChanged() {
+	length := s.Queue.Len()
+	s.Events.Publish(newQueueUpdatedEvent(s.Slug, length))
+
+	threshold := s.lowQueueThreshold.Load()
+	if threshold <= 0 {
+		return
+	}
+
+	isLow := length <= int(threshold)
+	wasLow := s.wasQueueLow.Swap(isLow)
+	if isLow && !wasLow {
+		s.Events.Publish(newQueueLowEvent(s.Slug, length, threshold))
+	}
 }
 
 func (s *Station) PublishTrackStarted(item *QueuedItem) {

@@ -7,17 +7,21 @@ modules pre-registered:
 
 ```lua
 radio.args               -- CLI passthrough args, see below
-radio.register(slug, name, description)
+radio.register(slug, name, description [, options])
 radio.queue(source, mode)
+radio.dequeue(queue_id)
+radio.clear_queue()
 radio.status()
 radio.every(seconds, fn)
 radio.after(seconds, fn)
 radio.on_track_started(fn)
 radio.on_track_ended(fn)
 radio.on_error(fn)
+radio.on_queue_low(fn)
 
-local http = require("http")   -- full, unrestricted HTTP client
-local sql  = require("sql")    -- full MySQL access via database/sql
+local http  = require("http")   -- full, unrestricted HTTP client
+local sql   = require("sql")    -- full MySQL access via database/sql
+local redis = require("redis")  -- full Redis access: KV, lists, pub/sub
 ```
 
 This is deliberately minimal — enough to register a station, queue tracks,
@@ -47,6 +51,8 @@ print(radio.args[2])  --> "My FM"
 - [Registering & Queueing](register-queue-status.md) — `radio.register`, `radio.queue`, `radio.status`
 - [Events & Scheduling](events-and-scheduling.md) — `radio.every`, `radio.after`, `radio.on_*`
 - [HTTP & SQL Modules](http-and-sql-modules.md) — `require("http")`, `require("sql")`
+- [Redis Module](redis-module.md) — `require("redis")`, including a listener request-system pattern
+- [Editor Support (VS Code)](editor-support.md) — autocomplete/type-checking for all of the above via LuaLS
 
 Or read [`testdata/station-scripts/example.lua`](https://github.com/tmfksoft/goradio/blob/main/testdata/station-scripts/example.lua)
 for a complete, working reference script that exercises all of the above.

@@ -71,6 +71,28 @@ Fired when something goes wrong that doesn't have a better place to
 surface — most commonly, a queued item's source failed to resolve or
 transcode (see the note in [`radio.queue`](register-queue-status.md#radioqueuesource-mode)).
 
+### `radio.on_queue_low(fn)`
+
+```lua
+radio.register("myfm", "My FM", "", {low_queue_threshold = 3})
+
+radio.on_queue_low(function(ev)
+  print(ev.queue_length)  -- current pending queue length
+  print(ev.threshold)     -- the low_queue_threshold you registered with
+  radio.queue(pick_next_track(), "APPEND")
+end)
+```
+
+This is the recommended way to keep a station's queue topped up — instead
+of polling `radio.status().queue_length` on a timer, set
+`low_queue_threshold` when you [register](register-queue-status.md#radioregisterslug-name-description-options),
+and react exactly when the server tells you it's time to queue more. It's
+**edge-triggered**: it fires once when the queue length drops to or below
+the threshold, then won't fire again until the length rises back above the
+threshold and dips again — so a callback that queues exactly one track at a
+time won't be called repeatedly while the queue happens to sit at or below
+threshold. No-op (never fires) unless `low_queue_threshold` was set > 0.
+
 ### Events without a Lua callback (yet)
 
 The protocol also defines `QUEUE_UPDATED`, `LISTENER_COUNT_CHANGED`,
@@ -79,5 +101,5 @@ The protocol also defines `QUEUE_UPDATED`, `LISTENER_COUNT_CHANGED`,
 but there's no dedicated `radio.on_*` hook for them this phase — poll
 [`radio.status()`](register-queue-status.md#radiostatus) if you need that
 information. If you're writing a controller in another language instead of
-Lua, all seven event types are available to you directly over
+Lua, all eight event types are available to you directly over
 `SubscribeEvents`.

@@ -102,6 +102,14 @@ func newQueueUpdatedEvent(slug string, length int) *audioserverv1.StationEvent {
 	return e
 }
 
+func newQueueLowEvent(slug string, length int, threshold int32) *audioserverv1.StationEvent {
+	e := newEvent(slug, audioserverv1.EventType_EVENT_TYPE_QUEUE_LOW)
+	e.Payload = &audioserverv1.StationEvent_QueueLow{
+		QueueLow: &audioserverv1.QueueLowPayload{QueueLength: int32(length), Threshold: threshold},
+	}
+	return e
+}
+
 func newListenerCountEvent(slug string, count int) *audioserverv1.StationEvent {
 	e := newEvent(slug, audioserverv1.EventType_EVENT_TYPE_LISTENER_COUNT_CHANGED)
 	e.Payload = &audioserverv1.StationEvent_ListenerCountChanged{

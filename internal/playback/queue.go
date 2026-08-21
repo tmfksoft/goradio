@@ -22,6 +22,8 @@ type QueuedItem struct {
 
 	ready     chan struct{}
 	localPath string
+	isLive    bool
+	liveURL   string
 	err       error
 }
 
@@ -45,12 +47,29 @@ func (q *QueuedItem) MarkReady(localPath string, err error) {
 	close(q.ready)
 }
 
+// MarkLive completes prefetch for this item as a live stream (auto-
+// detected — see audiosource.Resolve): it bypasses the transcode cache
+// entirely and is relayed continuously by the player instead, rather than
+// played from a cached file.
+func (q *QueuedItem) MarkLive(url string) {
+	q.isLive = true
+	q.liveURL = url
+	close(q.ready)
+}
+
 // Ready is closed once prefetch has completed (successfully or not).
 func (q *QueuedItem) Ready() <-chan struct{} { return q.ready }
 
 // LocalPath returns the cached, transcoded file to play. Only valid after
-// Ready is closed and Err is nil.
+// Ready is closed, Err is nil, and IsLive is false.
 func (q *QueuedItem) LocalPath() string { return q.localPath }
+
+// IsLive reports whether this item is a live stream to relay continuously
+// rather than a finite cached file. Only valid after Ready is closed.
+func (q *QueuedItem) IsLive() bool { return q.isLive }
+
+// LiveURL is the upstream URL to relay. Only valid when IsLive is true.
+func (q *QueuedItem) LiveURL() string { return q.liveURL }
 
 // Err explains why prefetch failed, if it did. Only valid after Ready is
 // closed.
@@ -95,6 +114,29 @@ func (q *Queue) PopFront() (*QueuedItem, bool) {
 	item := q.items[0]
 	q.items = q.items[1:]
 	return item, true
+}
+
+// Remove removes the pending item with the given id, if present. It cannot
+// remove whatever the player has already popped and is currently playing.
+func (q *Queue) Remove(queueID string) bool {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	for i, item := range q.items {
+		if item.ID == queueID {
+			q.items = append(q.items[:i], q.items[i+1:]...)
+			return true
+		}
+	}
+	return false
+}
+
+// Clear removes every pending item and returns how many were removed.
+func (q *Queue) Clear() int {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	n := len(q.items)
+	q.items = nil
+	return n
 }
 
 // Snapshot returns a copy of the current queue contents, for GetStatus.

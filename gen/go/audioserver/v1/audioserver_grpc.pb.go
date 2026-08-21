@@ -21,6 +21,9 @@ const _ = grpc.SupportPackageIsVersion9
 const (
 	AudioServerService_RegisterStation_FullMethodName = "/audioserver.v1.AudioServerService/RegisterStation"
 	AudioServerService_QueueTrack_FullMethodName      = "/audioserver.v1.AudioServerService/QueueTrack"
+	AudioServerService_RemoveFromQueue_FullMethodName = "/audioserver.v1.AudioServerService/RemoveFromQueue"
+	AudioServerService_ClearQueue_FullMethodName      = "/audioserver.v1.AudioServerService/ClearQueue"
+	AudioServerService_Skip_FullMethodName            = "/audioserver.v1.AudioServerService/Skip"
 	AudioServerService_GetStatus_FullMethodName       = "/audioserver.v1.AudioServerService/GetStatus"
 	AudioServerService_SubscribeEvents_FullMethodName = "/audioserver.v1.AudioServerService/SubscribeEvents"
 )
@@ -31,6 +34,9 @@ const (
 type AudioServerServiceClient interface {
 	RegisterStation(ctx context.Context, in *RegisterStationRequest, opts ...grpc.CallOption) (*RegisterStationResponse, error)
 	QueueTrack(ctx context.Context, in *QueueTrackRequest, opts ...grpc.CallOption) (*QueueTrackResponse, error)
+	RemoveFromQueue(ctx context.Context, in *RemoveFromQueueRequest, opts ...grpc.CallOption) (*RemoveFromQueueResponse, error)
+	ClearQueue(ctx context.Context, in *ClearQueueRequest, opts ...grpc.CallOption) (*ClearQueueResponse, error)
+	Skip(ctx context.Context, in *SkipRequest, opts ...grpc.CallOption) (*SkipResponse, error)
 	GetStatus(ctx context.Context, in *GetStatusRequest, opts ...grpc.CallOption) (*GetStatusResponse, error)
 	SubscribeEvents(ctx context.Context, in *SubscribeEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[StationEvent], error)
 }
@@ -57,6 +63,36 @@ func (c *audioServerServiceClient) QueueTrack(ctx context.Context, in *QueueTrac
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(QueueTrackResponse)
 	err := c.cc.Invoke(ctx, AudioServerService_QueueTrack_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *audioServerServiceClient) RemoveFromQueue(ctx context.Context, in *RemoveFromQueueRequest, opts ...grpc.CallOption) (*RemoveFromQueueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveFromQueueResponse)
+	err := c.cc.Invoke(ctx, AudioServerService_RemoveFromQueue_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *audioServerServiceClient) ClearQueue(ctx context.Context, in *ClearQueueRequest, opts ...grpc.CallOption) (*ClearQueueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ClearQueueResponse)
+	err := c.cc.Invoke(ctx, AudioServerService_ClearQueue_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *audioServerServiceClient) Skip(ctx context.Context, in *SkipRequest, opts ...grpc.CallOption) (*SkipResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SkipResponse)
+	err := c.cc.Invoke(ctx, AudioServerService_Skip_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -98,6 +134,9 @@ type AudioServerService_SubscribeEventsClient = grpc.ServerStreamingClient[Stati
 type AudioServerServiceServer interface {
 	RegisterStation(context.Context, *RegisterStationRequest) (*RegisterStationResponse, error)
 	QueueTrack(context.Context, *QueueTrackRequest) (*QueueTrackResponse, error)
+	RemoveFromQueue(context.Context, *RemoveFromQueueRequest) (*RemoveFromQueueResponse, error)
+	ClearQueue(context.Context, *ClearQueueRequest) (*ClearQueueResponse, error)
+	Skip(context.Context, *SkipRequest) (*SkipResponse, error)
 	GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error)
 	SubscribeEvents(*SubscribeEventsRequest, grpc.ServerStreamingServer[StationEvent]) error
 	mustEmbedUnimplementedAudioServerServiceServer()
@@ -115,6 +154,15 @@ func (UnimplementedAudioServerServiceServer) RegisterStation(context.Context, *R
 }
 func (UnimplementedAudioServerServiceServer) QueueTrack(context.Context, *QueueTrackRequest) (*QueueTrackResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method QueueTrack not implemented")
+}
+func (UnimplementedAudioServerServiceServer) RemoveFromQueue(context.Context, *RemoveFromQueueRequest) (*RemoveFromQueueResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoveFromQueue not implemented")
+}
+func (UnimplementedAudioServerServiceServer) ClearQueue(context.Context, *ClearQueueRequest) (*ClearQueueResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClearQueue not implemented")
+}
+func (UnimplementedAudioServerServiceServer) Skip(context.Context, *SkipRequest) (*SkipResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method Skip not implemented")
 }
 func (UnimplementedAudioServerServiceServer) GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetStatus not implemented")
@@ -179,6 +227,60 @@ func _AudioServerService_QueueTrack_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AudioServerService_RemoveFromQueue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveFromQueueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AudioServerServiceServer).RemoveFromQueue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AudioServerService_RemoveFromQueue_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AudioServerServiceServer).RemoveFromQueue(ctx, req.(*RemoveFromQueueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AudioServerService_ClearQueue_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ClearQueueRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AudioServerServiceServer).ClearQueue(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AudioServerService_ClearQueue_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AudioServerServiceServer).ClearQueue(ctx, req.(*ClearQueueRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AudioServerService_Skip_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SkipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AudioServerServiceServer).Skip(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AudioServerService_Skip_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AudioServerServiceServer).Skip(ctx, req.(*SkipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _AudioServerService_GetStatus_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetStatusRequest)
 	if err := dec(in); err != nil {
@@ -222,6 +324,18 @@ var AudioServerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "QueueTrack",
 			Handler:    _AudioServerService_QueueTrack_Handler,
+		},
+		{
+			MethodName: "RemoveFromQueue",
+			Handler:    _AudioServerService_RemoveFromQueue_Handler,
+		},
+		{
+			MethodName: "ClearQueue",
+			Handler:    _AudioServerService_ClearQueue_Handler,
+		},
+		{
+			MethodName: "Skip",
+			Handler:    _AudioServerService_Skip_Handler,
 		},
 		{
 			MethodName: "GetStatus",

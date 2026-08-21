@@ -14,19 +14,19 @@ import (
 // about to play) so downloads/transcodes are ready well ahead of playback.
 // It implements grpcapi.Prefetcher.
 type Pool struct {
-	log    *slog.Logger
-	cache  *Cache
-	srcCfg audiosource.Config
-	jobs   chan *playback.QueuedItem
+	log      *slog.Logger
+	cache    *Cache
+	resolver *audiosource.Resolver
+	jobs     chan *playback.QueuedItem
 }
 
 // NewPool starts workerCount background workers.
 func NewPool(log *slog.Logger, cache *Cache, srcCfg audiosource.Config, workerCount int) *Pool {
 	p := &Pool{
-		log:    log,
-		cache:  cache,
-		srcCfg: srcCfg,
-		jobs:   make(chan *playback.QueuedItem, 64),
+		log:      log,
+		cache:    cache,
+		resolver: audiosource.NewResolver(srcCfg),
+		jobs:     make(chan *playback.QueuedItem, 64),
 	}
 	for i := 0; i < workerCount; i++ {
 		go p.worker()
@@ -43,12 +43,19 @@ func (p *Pool) worker() {
 func (p *Pool) process(item *playback.QueuedItem) {
 	ctx := context.Background()
 
-	resolved, err := audiosource.Resolve(ctx, p.srcCfg, item.Source)
+	resolved, err := p.resolver.Resolve(ctx, item.Source)
 	if err != nil {
 		p.log.Warn("failed to resolve track source", "error", err, "location", item.Source.GetLocation())
 		item.MarkReady("", err)
 		return
 	}
+
+	if resolved.IsLive {
+		p.log.Info("track source auto-detected as a live stream", "location", item.Source.GetLocation())
+		item.MarkLive(resolved.LiveURL)
+		return
+	}
+
 	if resolved.Downloaded {
 		defer os.Remove(resolved.Path)
 	}

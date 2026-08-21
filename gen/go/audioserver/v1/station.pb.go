@@ -25,12 +25,18 @@ const (
 // Re-registering an existing slug updates its metadata in place without
 // disrupting the running queue/player, supporting controller reconnects.
 type RegisterStationRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Slug        string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
+	Name        string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Description string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// If > 0, the server fires an EVENT_TYPE_QUEUE_LOW event (once, edge-
+	// triggered) whenever the pending queue length drops to or below this
+	// threshold, so the controller doesn't have to poll GetStatus to know
+	// when to queue more. 0 (the default) disables the event. Updated in
+	// place on re-registration, same as name/description.
+	LowQueueThreshold int32 `protobuf:"varint,4,opt,name=low_queue_threshold,json=lowQueueThreshold,proto3" json:"low_queue_threshold,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *RegisterStationRequest) Reset() {
@@ -82,6 +88,13 @@ func (x *RegisterStationRequest) GetDescription() string {
 		return x.Description
 	}
 	return ""
+}
+
+func (x *RegisterStationRequest) GetLowQueueThreshold() int32 {
+	if x != nil {
+		return x.LowQueueThreshold
+	}
+	return 0
 }
 
 type RegisterStationResponse struct {
@@ -148,11 +161,12 @@ var File_audioserver_v1_station_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_station_proto_rawDesc = "" +
 	"\n" +
-	"\x1caudioserver/v1/station.proto\x12\x0eaudioserver.v1\"b\n" +
+	"\x1caudioserver/v1/station.proto\x12\x0eaudioserver.v1\"\x92\x01\n" +
 	"\x16RegisterStationRequest\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12 \n" +
-	"\vdescription\x18\x03 \x01(\tR\vdescription\"q\n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12.\n" +
+	"\x13low_queue_threshold\x18\x04 \x01(\x05R\x11lowQueueThreshold\"q\n" +
 	"\x17RegisterStationResponse\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x1d\n" +
 	"\n" +

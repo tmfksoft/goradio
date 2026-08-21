@@ -28,6 +28,8 @@ build_platform() {
   cp "$ROOT_DIR/configs/server.example.yaml" "$out_dir/"
   cp "$ROOT_DIR/configs/station.example.yaml" "$out_dir/"
   cp "$ASSETS_DIR/station.lua" "$out_dir/"
+  cp "$ROOT_DIR/.luarc.json" "$out_dir/"
+  cp -r "$ROOT_DIR/lua-types" "$out_dir/lua-types"
 
   sed \
     -e "s|{{VERSION}}|${VERSION}|g" \

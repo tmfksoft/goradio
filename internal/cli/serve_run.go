@@ -31,14 +31,13 @@ import (
 type stationStarter struct {
 	log         *slog.Logger
 	silencePath string
-	bitrateKbps int
+	playerCfg   playback.PlayerConfig
 }
 
 func (d *stationStarter) StartStation(st *playback.Station) {
-	go st.Run(context.Background(), d.log, playback.PlayerConfig{
-		BitrateKbps: d.bitrateKbps,
-		SilencePath: d.silencePath,
-	})
+	cfg := d.playerCfg
+	cfg.SilencePath = d.silencePath
+	go st.Run(context.Background(), d.log, cfg)
 }
 
 func runServe(log *slog.Logger, cfg *config.AudioServerConfig) error {
@@ -70,7 +69,16 @@ func runServe(log *slog.Logger, cfg *config.AudioServerConfig) error {
 	pool := transcode.NewPool(log, cache, srcCfg, cfg.Transcode.WorkerCount)
 
 	reg := registry.New()
-	starter := &stationStarter{log: log, silencePath: silencePath, bitrateKbps: cfg.Transcode.BitrateKbps}
+	starter := &stationStarter{
+		log:         log,
+		silencePath: silencePath,
+		playerCfg: playback.PlayerConfig{
+			BitrateKbps: cfg.Transcode.BitrateKbps,
+			SampleRate:  cfg.Transcode.SampleRate,
+			Channels:    cfg.Transcode.Channels,
+			FfmpegPath:  cfg.Transcode.FfmpegPath,
+		},
+	}
 
 	grpcServer := grpc.NewServer(
 		grpc.UnaryInterceptor(auth.UnaryServerInterceptor([]byte(cfg.Auth.JWTSecret))),

@@ -1,7 +1,6 @@
 package luastation
 
 import (
-	"context"
 	"io"
 	"net/http"
 	"strings"
@@ -23,14 +22,18 @@ const maxHTTPResponseBytes = 20 * 1024 * 1024
 // HTTP client access with no domain restrictions, per the "full trusted
 // access" design decision: station authors are trusted operators writing
 // their own decision logic, not sandboxed third parties.
-func RegisterHTTPModule(L *lua.LState) {
+//
+// It's an Engine method so requests derive from Engine.ctx rather than
+// context.Background() — a slow/hanging request should still be cut short
+// by the process being asked to shut down.
+func (e *Engine) RegisterHTTPModule(L *lua.LState) {
 	L.PreloadModule("http", func(L *lua.LState) int {
 		mod := L.NewTable()
 		L.SetFuncs(mod, map[string]lua.LGFunction{
-			"get":    httpDo(http.MethodGet),
-			"post":   httpDo(http.MethodPost),
-			"put":    httpDo(http.MethodPut),
-			"delete": httpDo(http.MethodDelete),
+			"get":    e.httpDo(http.MethodGet),
+			"post":   e.httpDo(http.MethodPost),
+			"put":    e.httpDo(http.MethodPut),
+			"delete": e.httpDo(http.MethodDelete),
 		})
 		L.Push(mod)
 		return 1
@@ -42,7 +45,7 @@ func RegisterHTTPModule(L *lua.LState) {
 // the second return) if the request itself failed (DNS, connection,
 // timeout); a non-2xx HTTP response is still ok=true so scripts can branch
 // on status themselves.
-func httpDo(method string) lua.LGFunction {
+func (e *Engine) httpDo(method string) lua.LGFunction {
 	return func(L *lua.LState) int {
 		url := L.CheckString(1)
 
@@ -53,7 +56,7 @@ func httpDo(method string) lua.LGFunction {
 			}
 		}
 
-		req, err := http.NewRequestWithContext(context.Background(), method, url, body)
+		req, err := http.NewRequestWithContext(e.ctx, method, url, body)
 		if err != nil {
 			L.Push(lua.LFalse)
 			L.Push(lua.LString(err.Error()))

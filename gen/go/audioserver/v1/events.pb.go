@@ -32,6 +32,11 @@ const (
 	EventType_EVENT_TYPE_ERROR                  EventType = 5
 	EventType_EVENT_TYPE_SILENCE_STARTED        EventType = 6
 	EventType_EVENT_TYPE_SILENCE_ENDED          EventType = 7
+	// Fired once, edge-triggered, when the pending queue length drops to or
+	// below RegisterStationRequest.low_queue_threshold (only if that was set
+	// > 0 at registration) -- not fired again until the queue rises back
+	// above the threshold and dips again.
+	EventType_EVENT_TYPE_QUEUE_LOW EventType = 8
 )
 
 // Enum value maps for EventType.
@@ -45,6 +50,7 @@ var (
 		5: "EVENT_TYPE_ERROR",
 		6: "EVENT_TYPE_SILENCE_STARTED",
 		7: "EVENT_TYPE_SILENCE_ENDED",
+		8: "EVENT_TYPE_QUEUE_LOW",
 	}
 	EventType_value = map[string]int32{
 		"EVENT_TYPE_UNSPECIFIED":            0,
@@ -55,6 +61,7 @@ var (
 		"EVENT_TYPE_ERROR":                  5,
 		"EVENT_TYPE_SILENCE_STARTED":        6,
 		"EVENT_TYPE_SILENCE_ENDED":          7,
+		"EVENT_TYPE_QUEUE_LOW":              8,
 	}
 )
 
@@ -374,6 +381,58 @@ func (x *ErrorPayload) GetCode() string {
 	return ""
 }
 
+type QueueLowPayload struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	QueueLength   int32                  `protobuf:"varint,1,opt,name=queue_length,json=queueLength,proto3" json:"queue_length,omitempty"`
+	Threshold     int32                  `protobuf:"varint,2,opt,name=threshold,proto3" json:"threshold,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *QueueLowPayload) Reset() {
+	*x = QueueLowPayload{}
+	mi := &file_audioserver_v1_events_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *QueueLowPayload) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*QueueLowPayload) ProtoMessage() {}
+
+func (x *QueueLowPayload) ProtoReflect() protoreflect.Message {
+	mi := &file_audioserver_v1_events_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use QueueLowPayload.ProtoReflect.Descriptor instead.
+func (*QueueLowPayload) Descriptor() ([]byte, []int) {
+	return file_audioserver_v1_events_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *QueueLowPayload) GetQueueLength() int32 {
+	if x != nil {
+		return x.QueueLength
+	}
+	return 0
+}
+
+func (x *QueueLowPayload) GetThreshold() int32 {
+	if x != nil {
+		return x.Threshold
+	}
+	return 0
+}
+
 type StationEvent struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	Slug            string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
@@ -386,6 +445,7 @@ type StationEvent struct {
 	//	*StationEvent_QueueUpdated
 	//	*StationEvent_ListenerCountChanged
 	//	*StationEvent_Error
+	//	*StationEvent_QueueLow
 	Payload       isStationEvent_Payload `protobuf_oneof:"payload"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -393,7 +453,7 @@ type StationEvent struct {
 
 func (x *StationEvent) Reset() {
 	*x = StationEvent{}
-	mi := &file_audioserver_v1_events_proto_msgTypes[6]
+	mi := &file_audioserver_v1_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -405,7 +465,7 @@ func (x *StationEvent) String() string {
 func (*StationEvent) ProtoMessage() {}
 
 func (x *StationEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_audioserver_v1_events_proto_msgTypes[6]
+	mi := &file_audioserver_v1_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -418,7 +478,7 @@ func (x *StationEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StationEvent.ProtoReflect.Descriptor instead.
 func (*StationEvent) Descriptor() ([]byte, []int) {
-	return file_audioserver_v1_events_proto_rawDescGZIP(), []int{6}
+	return file_audioserver_v1_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *StationEvent) GetSlug() string {
@@ -494,6 +554,15 @@ func (x *StationEvent) GetError() *ErrorPayload {
 	return nil
 }
 
+func (x *StationEvent) GetQueueLow() *QueueLowPayload {
+	if x != nil {
+		if x, ok := x.Payload.(*StationEvent_QueueLow); ok {
+			return x.QueueLow
+		}
+	}
+	return nil
+}
+
 type isStationEvent_Payload interface {
 	isStationEvent_Payload()
 }
@@ -518,6 +587,10 @@ type StationEvent_Error struct {
 	Error *ErrorPayload `protobuf:"bytes,14,opt,name=error,proto3,oneof"`
 }
 
+type StationEvent_QueueLow struct {
+	QueueLow *QueueLowPayload `protobuf:"bytes,15,opt,name=queue_low,json=queueLow,proto3,oneof"`
+}
+
 func (*StationEvent_TrackStarted) isStationEvent_Payload() {}
 
 func (*StationEvent_TrackEnded) isStationEvent_Payload() {}
@@ -527,6 +600,8 @@ func (*StationEvent_QueueUpdated) isStationEvent_Payload() {}
 func (*StationEvent_ListenerCountChanged) isStationEvent_Payload() {}
 
 func (*StationEvent_Error) isStationEvent_Payload() {}
+
+func (*StationEvent_QueueLow) isStationEvent_Payload() {}
 
 var File_audioserver_v1_events_proto protoreflect.FileDescriptor
 
@@ -547,7 +622,10 @@ const file_audioserver_v1_events_proto_rawDesc = "" +
 	"\x0elistener_count\x18\x01 \x01(\x03R\rlistenerCount\"<\n" +
 	"\fErrorPayload\x12\x18\n" +
 	"\amessage\x18\x01 \x01(\tR\amessage\x12\x12\n" +
-	"\x04code\x18\x02 \x01(\tR\x04code\"\x81\x04\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\"R\n" +
+	"\x0fQueueLowPayload\x12!\n" +
+	"\fqueue_length\x18\x01 \x01(\x05R\vqueueLength\x12\x1c\n" +
+	"\tthreshold\x18\x02 \x01(\x05R\tthreshold\"\xc1\x04\n" +
 	"\fStationEvent\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12-\n" +
 	"\x04type\x18\x02 \x01(\x0e2\x19.audioserver.v1.EventTypeR\x04type\x12*\n" +
@@ -558,8 +636,9 @@ const file_audioserver_v1_events_proto_rawDesc = "" +
 	"trackEnded\x12J\n" +
 	"\rqueue_updated\x18\f \x01(\v2#.audioserver.v1.QueueUpdatedPayloadH\x00R\fqueueUpdated\x12c\n" +
 	"\x16listener_count_changed\x18\r \x01(\v2+.audioserver.v1.ListenerCountChangedPayloadH\x00R\x14listenerCountChanged\x124\n" +
-	"\x05error\x18\x0e \x01(\v2\x1c.audioserver.v1.ErrorPayloadH\x00R\x05errorB\t\n" +
-	"\apayload*\xfa\x01\n" +
+	"\x05error\x18\x0e \x01(\v2\x1c.audioserver.v1.ErrorPayloadH\x00R\x05error\x12>\n" +
+	"\tqueue_low\x18\x0f \x01(\v2\x1f.audioserver.v1.QueueLowPayloadH\x00R\bqueueLowB\t\n" +
+	"\apayload*\x94\x02\n" +
 	"\tEventType\x12\x1a\n" +
 	"\x16EVENT_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18EVENT_TYPE_TRACK_STARTED\x10\x01\x12\x1a\n" +
@@ -568,7 +647,8 @@ const file_audioserver_v1_events_proto_rawDesc = "" +
 	"!EVENT_TYPE_LISTENER_COUNT_CHANGED\x10\x04\x12\x14\n" +
 	"\x10EVENT_TYPE_ERROR\x10\x05\x12\x1e\n" +
 	"\x1aEVENT_TYPE_SILENCE_STARTED\x10\x06\x12\x1c\n" +
-	"\x18EVENT_TYPE_SILENCE_ENDED\x10\aBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\x18EVENT_TYPE_SILENCE_ENDED\x10\a\x12\x18\n" +
+	"\x14EVENT_TYPE_QUEUE_LOW\x10\bBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_events_proto_rawDescOnce sync.Once
@@ -583,7 +663,7 @@ func file_audioserver_v1_events_proto_rawDescGZIP() []byte {
 }
 
 var file_audioserver_v1_events_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_audioserver_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_audioserver_v1_events_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_audioserver_v1_events_proto_goTypes = []any{
 	(EventType)(0),                      // 0: audioserver.v1.EventType
 	(*SubscribeEventsRequest)(nil),      // 1: audioserver.v1.SubscribeEventsRequest
@@ -592,22 +672,24 @@ var file_audioserver_v1_events_proto_goTypes = []any{
 	(*QueueUpdatedPayload)(nil),         // 4: audioserver.v1.QueueUpdatedPayload
 	(*ListenerCountChangedPayload)(nil), // 5: audioserver.v1.ListenerCountChangedPayload
 	(*ErrorPayload)(nil),                // 6: audioserver.v1.ErrorPayload
-	(*StationEvent)(nil),                // 7: audioserver.v1.StationEvent
-	(*TrackSource)(nil),                 // 8: audioserver.v1.TrackSource
+	(*QueueLowPayload)(nil),             // 7: audioserver.v1.QueueLowPayload
+	(*StationEvent)(nil),                // 8: audioserver.v1.StationEvent
+	(*TrackSource)(nil),                 // 9: audioserver.v1.TrackSource
 }
 var file_audioserver_v1_events_proto_depIdxs = []int32{
-	8, // 0: audioserver.v1.TrackStartedPayload.source:type_name -> audioserver.v1.TrackSource
+	9, // 0: audioserver.v1.TrackStartedPayload.source:type_name -> audioserver.v1.TrackSource
 	0, // 1: audioserver.v1.StationEvent.type:type_name -> audioserver.v1.EventType
 	2, // 2: audioserver.v1.StationEvent.track_started:type_name -> audioserver.v1.TrackStartedPayload
 	3, // 3: audioserver.v1.StationEvent.track_ended:type_name -> audioserver.v1.TrackEndedPayload
 	4, // 4: audioserver.v1.StationEvent.queue_updated:type_name -> audioserver.v1.QueueUpdatedPayload
 	5, // 5: audioserver.v1.StationEvent.listener_count_changed:type_name -> audioserver.v1.ListenerCountChangedPayload
 	6, // 6: audioserver.v1.StationEvent.error:type_name -> audioserver.v1.ErrorPayload
-	7, // [7:7] is the sub-list for method output_type
-	7, // [7:7] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	7, // 7: audioserver.v1.StationEvent.queue_low:type_name -> audioserver.v1.QueueLowPayload
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_audioserver_v1_events_proto_init() }
@@ -616,12 +698,13 @@ func file_audioserver_v1_events_proto_init() {
 		return
 	}
 	file_audioserver_v1_queue_proto_init()
-	file_audioserver_v1_events_proto_msgTypes[6].OneofWrappers = []any{
+	file_audioserver_v1_events_proto_msgTypes[7].OneofWrappers = []any{
 		(*StationEvent_TrackStarted)(nil),
 		(*StationEvent_TrackEnded)(nil),
 		(*StationEvent_QueueUpdated)(nil),
 		(*StationEvent_ListenerCountChanged)(nil),
 		(*StationEvent_Error)(nil),
+		(*StationEvent_QueueLow)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -629,7 +712,7 @@ func file_audioserver_v1_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_audioserver_v1_events_proto_rawDesc), len(file_audioserver_v1_events_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

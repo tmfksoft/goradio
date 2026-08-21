@@ -1,8 +1,10 @@
 package luastation
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 	lua "github.com/yuin/gopher-lua"
@@ -10,34 +12,40 @@ import (
 
 const dbTypeName = "sql.DB"
 
+const sqlCallTimeout = 10 * time.Second
+
 // RegisterSQLModule installs `require("sql")`, giving Lua scripts real
 // MySQL access via database/sql, per the "full trusted access" design
 // decision: station authors are trusted operators.
-func RegisterSQLModule(L *lua.LState) {
-	registerDBType(L)
+//
+// It's an Engine method so queries derive from Engine.ctx rather than
+// context.Background() — a slow/hanging query should still be cut short
+// by the process being asked to shut down.
+func (e *Engine) RegisterSQLModule(L *lua.LState) {
+	e.registerDBType(L)
 
 	L.PreloadModule("sql", func(L *lua.LState) int {
 		mod := L.NewTable()
 		L.SetFuncs(mod, map[string]lua.LGFunction{
-			"open": sqlOpen,
+			"open": e.sqlOpen,
 		})
 		L.Push(mod)
 		return 1
 	})
 }
 
-func registerDBType(L *lua.LState) {
+func (e *Engine) registerDBType(L *lua.LState) {
 	mt := L.NewTypeMetatable(dbTypeName)
 	methods := L.SetFuncs(L.NewTable(), map[string]lua.LGFunction{
-		"query": dbQuery,
-		"exec":  dbExec,
+		"query": e.dbQuery,
+		"exec":  e.dbExec,
 		"close": dbClose,
 	})
 	L.SetField(mt, "__index", methods)
 }
 
 // sql.open(dsn) -> db, err (Go MySQL DSN format, e.g. "user:pass@tcp(host:3306)/dbname")
-func sqlOpen(L *lua.LState) int {
+func (e *Engine) sqlOpen(L *lua.LState) int {
 	dsn := L.CheckString(1)
 
 	db, err := sql.Open("mysql", dsn)
@@ -46,7 +54,10 @@ func sqlOpen(L *lua.LState) int {
 		L.Push(lua.LString(err.Error()))
 		return 2
 	}
-	if err := db.Ping(); err != nil {
+
+	ctx, cancel := context.WithTimeout(e.ctx, sqlCallTimeout)
+	defer cancel()
+	if err := db.PingContext(ctx); err != nil {
 		L.Push(lua.LNil)
 		L.Push(lua.LString(err.Error()))
 		return 2
@@ -69,12 +80,15 @@ func checkDB(L *lua.LState) *sql.DB {
 }
 
 // db:query(sql [, args...]) -> rows (array of {column = value, ...}), err
-func dbQuery(L *lua.LState) int {
+func (e *Engine) dbQuery(L *lua.LState) int {
 	db := checkDB(L)
 	query := L.CheckString(2)
 	args := luaArgsToAny(L, 3)
 
-	rows, err := db.Query(query, args...)
+	ctx, cancel := context.WithTimeout(e.ctx, sqlCallTimeout)
+	defer cancel()
+
+	rows, err := db.QueryContext(ctx, query, args...)
 	if err != nil {
 		L.Push(lua.LNil)
 		L.Push(lua.LString(err.Error()))
@@ -114,12 +128,15 @@ func dbQuery(L *lua.LState) int {
 }
 
 // db:exec(sql [, args...]) -> ok, rows_affected, last_insert_id (or ok=false, err)
-func dbExec(L *lua.LState) int {
+func (e *Engine) dbExec(L *lua.LState) int {
 	db := checkDB(L)
 	query := L.CheckString(2)
 	args := luaArgsToAny(L, 3)
 
-	res, err := db.Exec(query, args...)
+	ctx, cancel := context.WithTimeout(e.ctx, sqlCallTimeout)
+	defer cancel()
+
+	res, err := db.ExecContext(ctx, query, args...)
 	if err != nil {
 		L.Push(lua.LFalse)
 		L.Push(lua.LString(err.Error()))

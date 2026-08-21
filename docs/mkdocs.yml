@@ -77,6 +77,8 @@ nav:
       - Registering & Queueing: lua-api/register-queue-status.md
       - Events & Scheduling: lua-api/events-and-scheduling.md
       - HTTP & SQL Modules: lua-api/http-and-sql-modules.md
+      - Redis Module: lua-api/redis-module.md
+      - Editor Support (VS Code): lua-api/editor-support.md
   - Developer / Protocol API:
       - Overview: developer-api/index.md
       - Protocol Reference: developer-api/protocol-reference.md

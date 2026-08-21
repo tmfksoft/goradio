@@ -5,7 +5,10 @@ not sandboxed third-party plugins — so both modules give **full,
 unrestricted access**: any URL, any database, no allowlists. This is what
 lets a script decide what to play based on an external API, a database of
 your own station's content metadata, listener requests stored somewhere,
-or anything else you can reach over HTTP or SQL.
+or anything else you can reach over HTTP or SQL. See also the
+[Redis Module](redis-module.md) if what you're building is a listener
+request system — Redis lists/pub-sub are usually a better fit for that
+than polling a database table.
 
 ## `require("http")`
 
