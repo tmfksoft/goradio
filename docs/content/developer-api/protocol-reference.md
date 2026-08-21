@@ -29,17 +29,28 @@ claims include:
   "sub": "whatever you passed as -subject",
   "iat": 1700000000,
   "exp": 1700086400,
-  "slugs": ["myfm", "otherfm"]
+  "slugs": ["myfm", "otherfm"],
+  "read_only": false
 }
 ```
 
 The server verifies the signature against its configured `auth.jwt_secret`,
 then checks that **the slug the specific call targets** is present in
-`slugs` — a token scoped to `myfm` gets `PermissionDenied` on any call
-(`RegisterStation`, `QueueTrack`, `GetStatus`, `SubscribeEvents`) made
-against `otherfm`, even if both stations exist on the same server. Mint
-tokens with [`radio tokengen`](../cli/tokengen.md), or sign your own
-HS256 JWT with this claim shape from any language.
+`slugs` — a token scoped to `myfm` gets `PermissionDenied` on any call made
+against `otherfm`, even if both stations exist on the same server.
+
+`read_only` (optional, default `false` — omit the field entirely for a
+normal read-write token) additionally gates every **write** RPC —
+`RegisterStation`, `QueueTrack`, `RemoveFromQueue`, `ClearQueue`, `Skip` —
+behind `read_only` being false; a read-only token gets `PermissionDenied`
+on any of those, while `GetStatus`, `SubscribeEvents`, and the
+[now-playing HTTP endpoint](now-playing-http-api.md) remain available
+regardless. Use this to hand out tokens for pure observers — a web embed,
+a Discord bot, a dashboard — that should never be able to touch playback.
+
+Mint tokens with [`radio tokengen`](../cli/tokengen.md) (`-readonly` for a
+read-only one), or sign your own HS256 JWT with this claim shape from any
+language.
 
 There is no TLS on the gRPC transport this phase — see
 [Known gaps](../index.md#known-gaps).
@@ -222,6 +233,7 @@ message QueuedItemStatus {
   string queue_id = 1;
   TrackSource source = 2;
   QueueMode mode = 3;
+  int64 duration_seconds = 4;   // 0 = unknown/indefinite (a live relay, or not-yet-ready)
 }
 
 message GetStatusResponse {
@@ -233,6 +245,7 @@ message GetStatusResponse {
   repeated QueuedItemStatus queue = 6;
   int64 listener_count = 7;
   int64 uptime_seconds = 8;
+  int64 current_track_elapsed_seconds = 9;   // only meaningful when current_track is set
 }
 ```
 
@@ -242,6 +255,14 @@ An on-demand snapshot. If `slug` isn't registered, `is_registered` is
 each with its `queue_id` — useful for building your own queue inspection
 or de-duplication logic without tracking every `QueueTrack` response
 yourself.
+
+`duration_seconds` is `0` for a live relay (no fixed length) and also
+briefly `0` for a pending item whose prefetch hasn't finished yet — it's
+computed from the cached, fixed-CBR file's size once transcoding
+completes, not probed with a separate tool. `current_track_elapsed_seconds`
+combined with `current_track.duration_seconds` is enough to render a
+progress bar; render it as an indefinite/pulsing bar instead of a fixed
+length when `duration_seconds` is `0`.
 
 ## SubscribeEvents
 
@@ -278,7 +299,7 @@ message StationEvent {
 
 | Event | Payload | Fired when |
 |---|---|---|
-| `TRACK_STARTED` | `TrackStartedPayload{queue_id, source}` | A queued item starts playing |
+| `TRACK_STARTED` | `TrackStartedPayload{queue_id, source, duration_seconds}` | A queued item starts playing |
 | `TRACK_ENDED` | `TrackEndedPayload{queue_id, reason}` | A track finishes — `reason` is `"completed"` or `"interrupted"` |
 | `QUEUE_UPDATED` | `QueueUpdatedPayload{queue_length}` | The queue length changes (an item was queued or consumed) |
 | `LISTENER_COUNT_CHANGED` | `ListenerCountChangedPayload{listener_count}` | An HTTP listener connects, disconnects, or is evicted |

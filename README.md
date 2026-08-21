@@ -94,7 +94,7 @@ radio.queue(source, mode)      -- source: path/URL string or {type=,location=,ti
 radio.dequeue(queue_id)        -- remove one still-pending item
 radio.clear_queue([stop_current]) -- remove all pending items, optionally interrupt what's playing too
 radio.skip()                   -- interrupt current playback only, leaving the queue intact
-local status = radio.status()  -- includes status.queue (full item list) and status.current_track
+local status = radio.status()  -- includes status.queue, status.current_track, .duration_seconds/.elapsed_seconds
 radio.every(seconds, fn)
 radio.after(seconds, fn)
 radio.on_track_started(fn)
@@ -163,6 +163,15 @@ make proto-push    # requires: buf registry login proto.prod.wtf
 - A station's own optional local control API (`api.enabled` in
   `station.yaml`) currently exposes only a placeholder, API-key-gated
   `GET /status` — richer control endpoints are future work.
+- `GET /stations/{slug}/now-playing` is a public JSON mirror of `GetStatus`
+  (title/artist/duration/elapsed/listeners) for pairing a plain HTML/JS
+  player with a progress bar or a Discord bot — no gRPC client needed. A
+  bearer token additionally unlocks raw file paths/URLs, which aren't
+  public by default. See the [docs](https://tmfksoft.github.io/goradio/developer-api/now-playing-http-api/).
+- `radio tokengen -readonly` mints a token that can `GetStatus`/
+  `SubscribeEvents` but gets `PermissionDenied` on every write RPC — for
+  observers (dashboards, bots) you don't want able to touch playback. Not
+  usable for `radio station` itself, since it always registers on startup.
 - Known gaps: no crossfade (hard cut only), no ICY mid-stream metadata, no
   TLS on the gRPC transport, no bundled genre-specific content logic
   (songs/idents/DJ chatter/callers/adverts) yet — build that in Lua on top

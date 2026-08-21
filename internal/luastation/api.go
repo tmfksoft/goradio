@@ -237,6 +237,7 @@ func (e *Engine) luaStatus(L *lua.LState) int {
 
 	if cur := resp.GetCurrentTrack(); cur != nil {
 		tbl.RawSetString("current_track", queuedItemToLua(L, cur))
+		tbl.RawSetString("elapsed_seconds", lua.LNumber(resp.GetCurrentTrackElapsedSeconds()))
 	}
 
 	queueTbl := L.NewTable()
@@ -256,6 +257,7 @@ func queuedItemToLua(L *lua.LState, item *audioserverv1.QueuedItemStatus) *lua.L
 	tbl.RawSetString("title", lua.LString(item.GetSource().GetDisplayTitle()))
 	tbl.RawSetString("artist", lua.LString(item.GetSource().GetDisplayArtist()))
 	tbl.RawSetString("mode", lua.LString(item.GetMode().String()))
+	tbl.RawSetString("duration_seconds", lua.LNumber(item.GetDurationSeconds()))
 	return tbl
 }
 

@@ -25,6 +25,10 @@ type Station struct {
 
 	current   atomic.Pointer[QueuedItem]
 	isSilence atomic.Bool
+	// currentStartedAtUnixNano is 0 while playing silence (no current
+	// item), otherwise the moment SetCurrent(item) was last called with a
+	// non-nil item -- used to compute CurrentElapsedSeconds for GetStatus.
+	currentStartedAtUnixNano atomic.Int64
 
 	// lowQueueThreshold and wasQueueLow implement the edge-triggered
 	// EVENT_TYPE_QUEUE_LOW event: 0 disables it, otherwise QueueChanged
@@ -172,4 +176,19 @@ func (s *Station) PublishSilenceEnded() {
 func (s *Station) SetCurrent(item *QueuedItem) {
 	s.current.Store(item)
 	s.isSilence.Store(item == nil)
+	if item != nil {
+		s.currentStartedAtUnixNano.Store(time.Now().UnixNano())
+	} else {
+		s.currentStartedAtUnixNano.Store(0)
+	}
+}
+
+// CurrentElapsedSeconds is how long the current item has been playing, or
+// 0 while playing silence (no current item).
+func (s *Station) CurrentElapsedSeconds() int64 {
+	startedAt := s.currentStartedAtUnixNano.Load()
+	if startedAt == 0 {
+		return 0
+	}
+	return int64(time.Since(time.Unix(0, startedAt)).Seconds())
 }

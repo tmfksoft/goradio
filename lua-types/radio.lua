@@ -33,6 +33,7 @@
 ---@field title string
 ---@field artist string
 ---@field mode string
+---@field duration_seconds integer # 0 = unknown/indefinite (a live relay, or not-yet-ready)
 
 ---@class RadioStatus
 ---@field slug string
@@ -43,6 +44,7 @@
 ---@field uptime_seconds integer
 ---@field queue_length integer
 ---@field current_track? RadioQueueItem # nil while playing silence
+---@field elapsed_seconds? integer # how long current_track has been playing; only set when current_track is
 ---@field queue RadioQueueItem[] # pending items, in play order
 
 ---@class RadioTrackStartedEvent
@@ -50,6 +52,7 @@
 ---@field location string
 ---@field title string
 ---@field artist string
+---@field duration_seconds integer # 0 = unknown/indefinite (a live relay)
 
 ---@class RadioTrackEndedEvent
 ---@field queue_id string

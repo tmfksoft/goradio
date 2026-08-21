@@ -92,7 +92,7 @@ func runServe(log *slog.Logger, cfg *config.AudioServerConfig) error {
 		return fmt.Errorf("listen grpc: %w", err)
 	}
 
-	mux := httpapi.NewMux(log, reg)
+	mux := httpapi.NewMux(log, reg, []byte(cfg.Auth.JWTSecret))
 	httpServer := &http.Server{Addr: cfg.HTTP.ListenAddr, Handler: mux}
 
 	errCh := make(chan error, 2)

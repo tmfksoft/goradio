@@ -86,3 +86,20 @@ func RequireSlug(ctx context.Context, slug string) error {
 	}
 	return nil
 }
+
+// RequireWrite checks that the caller's claims (attached by the auth
+// interceptor) are not read-only, returning codes.PermissionDenied if
+// they are. Every write RPC (RegisterStation, QueueTrack,
+// RemoveFromQueue, ClearQueue, Skip) calls this in addition to
+// RequireSlug; GetStatus and SubscribeEvents don't, since a read-only
+// token is exactly meant to allow those.
+func RequireWrite(ctx context.Context) error {
+	claims, ok := FromContext(ctx)
+	if !ok {
+		return status.Error(codes.Unauthenticated, "no claims in context")
+	}
+	if claims.ReadOnly {
+		return status.Error(codes.PermissionDenied, "token is read-only")
+	}
+	return nil
+}

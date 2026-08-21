@@ -46,7 +46,7 @@ func (p *Pool) process(item *playback.QueuedItem) {
 	resolved, err := p.resolver.Resolve(ctx, item.Source)
 	if err != nil {
 		p.log.Warn("failed to resolve track source", "error", err, "location", item.Source.GetLocation())
-		item.MarkReady("", err)
+		item.MarkReady("", 0, err)
 		return
 	}
 
@@ -63,11 +63,27 @@ func (p *Pool) process(item *playback.QueuedItem) {
 	path, err := p.cache.GetOrTranscode(ctx, resolved.Path, resolved.CacheKey)
 	if err != nil {
 		p.log.Warn("failed to transcode track", "error", err, "location", item.Source.GetLocation())
-		item.MarkReady("", err)
+		item.MarkReady("", 0, err)
 		return
 	}
 
-	item.MarkReady(path, nil)
+	item.MarkReady(path, p.durationSeconds(path), nil)
+}
+
+// durationSeconds computes a cached file's duration from its size, since
+// every cached file is a fixed CBR bitrate -- no need to probe the file
+// itself (e.g. via ffprobe). Returns 0 (unknown) if the file can't be
+// stat'd or the configured bitrate is 0.
+func (p *Pool) durationSeconds(path string) int64 {
+	bytesPerSecond := p.cache.Params().BitrateKbps * 1000 / 8
+	if bytesPerSecond <= 0 {
+		return 0
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		return 0
+	}
+	return info.Size() / int64(bytesPerSecond)
 }
 
 // Prefetch enqueues item for background resolve+transcode. Dispatch blocks

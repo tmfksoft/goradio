@@ -20,11 +20,12 @@ type QueuedItem struct {
 	Mode       audioserverv1.QueueMode
 	Transition audioserverv1.Transition
 
-	ready     chan struct{}
-	localPath string
-	isLive    bool
-	liveURL   string
-	err       error
+	ready           chan struct{}
+	localPath       string
+	durationSeconds int64
+	isLive          bool
+	liveURL         string
+	err             error
 }
 
 // NewQueuedItem creates a not-yet-ready queue item. Call MarkReady once
@@ -40,9 +41,11 @@ func NewQueuedItem(id string, source *audioserverv1.TrackSource, mode audioserve
 }
 
 // MarkReady completes prefetch for this item: either localPath is set to
-// the cached, transcoded audio file to play, or err explains why not.
-func (q *QueuedItem) MarkReady(localPath string, err error) {
+// the cached, transcoded audio file to play (with its duration, computed
+// from the fixed-CBR cached file's size), or err explains why not.
+func (q *QueuedItem) MarkReady(localPath string, durationSeconds int64, err error) {
 	q.localPath = localPath
+	q.durationSeconds = durationSeconds
 	q.err = err
 	close(q.ready)
 }
@@ -63,6 +66,10 @@ func (q *QueuedItem) Ready() <-chan struct{} { return q.ready }
 // LocalPath returns the cached, transcoded file to play. Only valid after
 // Ready is closed, Err is nil, and IsLive is false.
 func (q *QueuedItem) LocalPath() string { return q.localPath }
+
+// DurationSeconds is the track's length, or 0 if unknown/indefinite (a
+// live relay, or an item whose prefetch hasn't finished yet).
+func (q *QueuedItem) DurationSeconds() int64 { return q.durationSeconds }
 
 // IsLive reports whether this item is a live stream to relay continuously
 // rather than a finite cached file. Only valid after Ready is closed.

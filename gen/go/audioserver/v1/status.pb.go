@@ -66,12 +66,17 @@ func (x *GetStatusRequest) GetSlug() string {
 }
 
 type QueuedItemStatus struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	QueueId       string                 `protobuf:"bytes,1,opt,name=queue_id,json=queueId,proto3" json:"queue_id,omitempty"`
-	Source        *TrackSource           `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
-	Mode          QueueMode              `protobuf:"varint,3,opt,name=mode,proto3,enum=audioserver.v1.QueueMode" json:"mode,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	QueueId string                 `protobuf:"bytes,1,opt,name=queue_id,json=queueId,proto3" json:"queue_id,omitempty"`
+	Source  *TrackSource           `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	Mode    QueueMode              `protobuf:"varint,3,opt,name=mode,proto3,enum=audioserver.v1.QueueMode" json:"mode,omitempty"`
+	// 0 means unknown/indefinite -- always the case for a live relay (no
+	// fixed length), and also briefly true for a pending item whose
+	// prefetch hasn't finished yet (duration is only known once the source
+	// is resolved to a cached file or classified as live).
+	DurationSeconds int64 `protobuf:"varint,4,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *QueuedItemStatus) Reset() {
@@ -125,6 +130,13 @@ func (x *QueuedItemStatus) GetMode() QueueMode {
 	return QueueMode_QUEUE_MODE_UNSPECIFIED
 }
 
+func (x *QueuedItemStatus) GetDurationSeconds() int64 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
+}
+
 type GetStatusResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Slug          string                 `protobuf:"bytes,1,opt,name=slug,proto3" json:"slug,omitempty"`
@@ -135,8 +147,11 @@ type GetStatusResponse struct {
 	Queue         []*QueuedItemStatus    `protobuf:"bytes,6,rep,name=queue,proto3" json:"queue,omitempty"`
 	ListenerCount int64                  `protobuf:"varint,7,opt,name=listener_count,json=listenerCount,proto3" json:"listener_count,omitempty"`
 	UptimeSeconds int64                  `protobuf:"varint,8,opt,name=uptime_seconds,json=uptimeSeconds,proto3" json:"uptime_seconds,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// How long current_track has been playing. Only meaningful when
+	// current_track is set (0 while playing silence).
+	CurrentTrackElapsedSeconds int64 `protobuf:"varint,9,opt,name=current_track_elapsed_seconds,json=currentTrackElapsedSeconds,proto3" json:"current_track_elapsed_seconds,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *GetStatusResponse) Reset() {
@@ -225,17 +240,25 @@ func (x *GetStatusResponse) GetUptimeSeconds() int64 {
 	return 0
 }
 
+func (x *GetStatusResponse) GetCurrentTrackElapsedSeconds() int64 {
+	if x != nil {
+		return x.CurrentTrackElapsedSeconds
+	}
+	return 0
+}
+
 var File_audioserver_v1_status_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_status_proto_rawDesc = "" +
 	"\n" +
 	"\x1baudioserver/v1/status.proto\x12\x0eaudioserver.v1\x1a\x1aaudioserver/v1/queue.proto\"&\n" +
 	"\x10GetStatusRequest\x12\x12\n" +
-	"\x04slug\x18\x01 \x01(\tR\x04slug\"\x91\x01\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\"\xbc\x01\n" +
 	"\x10QueuedItemStatus\x12\x19\n" +
 	"\bqueue_id\x18\x01 \x01(\tR\aqueueId\x123\n" +
 	"\x06source\x18\x02 \x01(\v2\x1b.audioserver.v1.TrackSourceR\x06source\x12-\n" +
-	"\x04mode\x18\x03 \x01(\x0e2\x19.audioserver.v1.QueueModeR\x04mode\"\xcc\x02\n" +
+	"\x04mode\x18\x03 \x01(\x0e2\x19.audioserver.v1.QueueModeR\x04mode\x12)\n" +
+	"\x10duration_seconds\x18\x04 \x01(\x03R\x0fdurationSeconds\"\x8f\x03\n" +
 	"\x11GetStatusResponse\x12\x12\n" +
 	"\x04slug\x18\x01 \x01(\tR\x04slug\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -245,7 +268,8 @@ const file_audioserver_v1_status_proto_rawDesc = "" +
 	"is_silence\x18\x05 \x01(\bR\tisSilence\x126\n" +
 	"\x05queue\x18\x06 \x03(\v2 .audioserver.v1.QueuedItemStatusR\x05queue\x12%\n" +
 	"\x0elistener_count\x18\a \x01(\x03R\rlistenerCount\x12%\n" +
-	"\x0euptime_seconds\x18\b \x01(\x03R\ruptimeSecondsBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\x0euptime_seconds\x18\b \x01(\x03R\ruptimeSeconds\x12A\n" +
+	"\x1dcurrent_track_elapsed_seconds\x18\t \x01(\x03R\x1acurrentTrackElapsedSecondsBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_status_proto_rawDescOnce sync.Once

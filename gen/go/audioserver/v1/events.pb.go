@@ -137,11 +137,14 @@ func (x *SubscribeEventsRequest) GetSlug() string {
 }
 
 type TrackStartedPayload struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	QueueId       string                 `protobuf:"bytes,1,opt,name=queue_id,json=queueId,proto3" json:"queue_id,omitempty"`
-	Source        *TrackSource           `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state   protoimpl.MessageState `protogen:"open.v1"`
+	QueueId string                 `protobuf:"bytes,1,opt,name=queue_id,json=queueId,proto3" json:"queue_id,omitempty"`
+	Source  *TrackSource           `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	// 0 means unknown/indefinite (a live relay). A subscriber can compute
+	// elapsed time from this event's own timestamp_unix_ms going forward.
+	DurationSeconds int64 `protobuf:"varint,3,opt,name=duration_seconds,json=durationSeconds,proto3" json:"duration_seconds,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *TrackStartedPayload) Reset() {
@@ -186,6 +189,13 @@ func (x *TrackStartedPayload) GetSource() *TrackSource {
 		return x.Source
 	}
 	return nil
+}
+
+func (x *TrackStartedPayload) GetDurationSeconds() int64 {
+	if x != nil {
+		return x.DurationSeconds
+	}
+	return 0
 }
 
 type TrackEndedPayload struct {
@@ -609,10 +619,11 @@ const file_audioserver_v1_events_proto_rawDesc = "" +
 	"\n" +
 	"\x1baudioserver/v1/events.proto\x12\x0eaudioserver.v1\x1a\x1aaudioserver/v1/queue.proto\",\n" +
 	"\x16SubscribeEventsRequest\x12\x12\n" +
-	"\x04slug\x18\x01 \x01(\tR\x04slug\"e\n" +
+	"\x04slug\x18\x01 \x01(\tR\x04slug\"\x90\x01\n" +
 	"\x13TrackStartedPayload\x12\x19\n" +
 	"\bqueue_id\x18\x01 \x01(\tR\aqueueId\x123\n" +
-	"\x06source\x18\x02 \x01(\v2\x1b.audioserver.v1.TrackSourceR\x06source\"F\n" +
+	"\x06source\x18\x02 \x01(\v2\x1b.audioserver.v1.TrackSourceR\x06source\x12)\n" +
+	"\x10duration_seconds\x18\x03 \x01(\x03R\x0fdurationSeconds\"F\n" +
 	"\x11TrackEndedPayload\x12\x19\n" +
 	"\bqueue_id\x18\x01 \x01(\tR\aqueueId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\"8\n" +

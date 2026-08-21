@@ -76,8 +76,9 @@ func newTrackStartedEvent(slug string, item *QueuedItem) *audioserverv1.StationE
 	e := newEvent(slug, audioserverv1.EventType_EVENT_TYPE_TRACK_STARTED)
 	e.Payload = &audioserverv1.StationEvent_TrackStarted{
 		TrackStarted: &audioserverv1.TrackStartedPayload{
-			QueueId: item.ID,
-			Source:  item.Source,
+			QueueId:         item.ID,
+			Source:          item.Source,
+			DurationSeconds: item.DurationSeconds(),
 		},
 	}
 	return e

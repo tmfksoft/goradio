@@ -192,10 +192,12 @@ print(status.uptime_seconds)
 
 if status.current_track then
   print(status.current_track.location)
+  print(status.current_track.duration_seconds)  -- 0 = unknown/indefinite (a live relay)
+  print(status.elapsed_seconds)                  -- how long it's been playing
 end
 
 for i, item in ipairs(status.queue) do
-  print(i, item.queue_id, item.location, item.title, item.artist, item.mode)
+  print(i, item.queue_id, item.location, item.title, item.artist, item.mode, item.duration_seconds)
 end
 ```
 
@@ -204,6 +206,10 @@ the tables passed to [`radio.on_track_started`](events-and-scheduling.md#radioon
 not just the count — use it to see what's actually queued (e.g. to avoid
 queueing the same track twice in a row) rather than just how much is
 queued. `current_track` is `nil` while the station is playing silence.
+`duration_seconds` and `status.elapsed_seconds` are exactly what you'd
+need to render a progress bar — treat `duration_seconds == 0` as
+"indefinite" rather than dividing by zero, which is always the case for a
+queued live stream.
 
 Use this for polling; use [`radio.on_track_started`/`radio.on_track_ended`](events-and-scheduling.md)
 for reacting to changes in real time without polling, or

@@ -10,15 +10,20 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// Claims is the JWT payload used across GoRadio: the bearer may control any
-// station slug listed in Slugs.
+// Claims is the JWT payload used across GoRadio: the bearer may act on any
+// station slug listed in Slugs. If ReadOnly is true, that's restricted to
+// read-only calls (GetStatus, SubscribeEvents) -- every write RPC
+// (RegisterStation, QueueTrack, RemoveFromQueue, ClearQueue, Skip)
+// requires ReadOnly to be false; see RequireWrite.
 type Claims struct {
 	jwt.RegisteredClaims
-	Slugs []string `json:"slugs"`
+	Slugs    []string `json:"slugs"`
+	ReadOnly bool     `json:"read_only,omitempty"`
 }
 
-// Sign mints an HS256 JWT authorizing the given slugs.
-func Sign(secret []byte, slugs []string, subject string, ttl time.Duration) (string, error) {
+// Sign mints an HS256 JWT authorizing the given slugs, optionally
+// restricted to read-only calls.
+func Sign(secret []byte, slugs []string, subject string, ttl time.Duration, readOnly bool) (string, error) {
 	now := time.Now()
 	claims := Claims{
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -26,7 +31,8 @@ func Sign(secret []byte, slugs []string, subject string, ttl time.Duration) (str
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
 		},
-		Slugs: slugs,
+		Slugs:    slugs,
+		ReadOnly: readOnly,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

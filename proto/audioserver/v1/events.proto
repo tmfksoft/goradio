@@ -29,6 +29,9 @@ enum EventType {
 message TrackStartedPayload {
   string queue_id = 1;
   TrackSource source = 2;
+  // 0 means unknown/indefinite (a live relay). A subscriber can compute
+  // elapsed time from this event's own timestamp_unix_ms going forward.
+  int64 duration_seconds = 3;
 }
 
 message TrackEndedPayload {

@@ -28,6 +28,9 @@ func NewCache(dir, ffmpegPath string, params EncodeParams, timeout time.Duration
 	return &Cache{dir: dir, ffmpegPath: ffmpegPath, params: params, timeout: timeout}
 }
 
+// Params returns the fixed target format everything is transcoded to.
+func (c *Cache) Params() EncodeParams { return c.params }
+
 // pathFor returns the sharded on-disk path for a cache key: <dir>/<first 2
 // hex chars>/<full hex key>.mp3.
 func (c *Cache) pathFor(cacheKey string) string {

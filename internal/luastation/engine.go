@@ -324,6 +324,7 @@ func (e *Engine) dispatchEvent(ev *audioserverv1.StationEvent) {
 			tbl.RawSetString("location", lua.LString(p.GetSource().GetLocation()))
 			tbl.RawSetString("title", lua.LString(p.GetSource().GetDisplayTitle()))
 			tbl.RawSetString("artist", lua.LString(p.GetSource().GetDisplayArtist()))
+			tbl.RawSetString("duration_seconds", lua.LNumber(p.GetDurationSeconds()))
 			e.callLua(e.onTrackStarted, tbl)
 		}
 	case audioserverv1.EventType_EVENT_TYPE_TRACK_ENDED:

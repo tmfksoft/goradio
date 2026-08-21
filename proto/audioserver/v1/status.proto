@@ -14,6 +14,11 @@ message QueuedItemStatus {
   string queue_id = 1;
   TrackSource source = 2;
   QueueMode mode = 3;
+  // 0 means unknown/indefinite -- always the case for a live relay (no
+  // fixed length), and also briefly true for a pending item whose
+  // prefetch hasn't finished yet (duration is only known once the source
+  // is resolved to a cached file or classified as live).
+  int64 duration_seconds = 4;
 }
 
 message GetStatusResponse {
@@ -25,4 +30,7 @@ message GetStatusResponse {
   repeated QueuedItemStatus queue = 6;
   int64 listener_count = 7;
   int64 uptime_seconds = 8;
+  // How long current_track has been playing. Only meaningful when
+  // current_track is set (0 while playing silence).
+  int64 current_track_elapsed_seconds = 9;
 }

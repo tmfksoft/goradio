@@ -30,3 +30,6 @@ commands.
   message field, the auth model.
 - **[Writing a Controller](writing-a-controller.md)** — the lifecycle: what
   order to call things in, how to handle reconnects, worked example.
+- **[Now Playing HTTP API](now-playing-http-api.md)** — a plain public JSON
+  endpoint mirroring `GetStatus`, for a web embed or a bot that doesn't
+  want to speak gRPC at all.
