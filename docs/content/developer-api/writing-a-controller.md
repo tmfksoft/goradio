@@ -105,6 +105,20 @@ intervention:
   2. Re-open `SubscribeEvents`.
   3. Repeat with backoff if either fails.
 
+!!! warning "Re-registering isn't enough on its own -- the queue needs re-priming too"
+    If the audio server actually restarted (not just a network blip), its
+    registry is wiped, so the fresh station `RegisterStation` recreates for
+    you comes back with an **empty queue** — not the one you'd built up
+    before. Re-registering successfully doesn't refill it; whatever logic
+    queues your first track needs to run again after every successful
+    reconnect-driven re-registration, not just once at startup, or your
+    controller silently goes quiet (still connected, still "registered",
+    just never queuing anything again) after every audio-server restart.
+    `low_queue_threshold`'s edge-triggered low-queue signal doesn't save
+    you here either — it only fires transitioning into "low" from
+    "not low," which never happens on its own for a queue that's been
+    empty since the moment it was recreated.
+
 !!! warning "Don't retry permanent failures forever"
     Distinguish transient errors from permanent ones before you retry.
     `codes.Unauthenticated` (bad/expired/malformed JWT) and
@@ -119,8 +133,11 @@ intervention:
 
 This is exactly what `internal/luastation` (this repo's bundled Lua engine)
 does — see [`internal/luastation/engine.go`](https://github.com/tmfksoft/goradio/blob/main/internal/luastation/engine.go)
-(specifically `registerWithRetry` and `isRetryable`) if you want a concrete
-reference implementation of this reconnect loop to port to your language.
+(specifically `registerWithRetry`, `isRetryable`, and `subscribeEventsLoop`'s
+`reregisteredCh` signal) if you want a concrete reference implementation of
+this reconnect loop, including the queue re-priming above, to port to your
+language. A Lua script gets that re-priming hook directly as
+[`radio.on_register`](../lua-api/events-and-scheduling.md#radioon_registerfn).
 
 ## Things your controller does *not* need to worry about
 

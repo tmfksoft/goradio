@@ -63,6 +63,7 @@ type Engine struct {
 	onTrackEnded   *lua.LFunction
 	onError        *lua.LFunction
 	onQueueLow     *lua.LFunction
+	onRegistered   *lua.LFunction
 
 	timers []*timerEntry
 
@@ -71,6 +72,16 @@ type Engine struct {
 	// callbacks — like every other Lua callback — run on the single
 	// goroutine that owns the Lua state.
 	redisMsgCh chan redisCallback
+
+	// reregisteredCh signals Run's select loop (from subscribeEventsLoop,
+	// a different goroutine) that a *reconnect-driven* re-registration
+	// just succeeded, so it can invoke onRegistered on the goroutine that
+	// actually owns the Lua state. Buffered and sent non-blockingly:
+	// dropping a signal here is harmless (worst case, one fewer immediate
+	// re-check of the queue -- the script's own on_queue_low/timers still
+	// cover it), whereas blocking this send would stall the reconnect
+	// loop itself.
+	reregisteredCh chan struct{}
 }
 
 type redisCallback struct {
@@ -95,12 +106,13 @@ type timerEntry struct {
 // CLI args (exposed to Lua as radio.args).
 func NewEngine(log *slog.Logger, cfg *config.StationConfig, scriptPath string, scriptArgs []string) *Engine {
 	return &Engine{
-		log:        log,
-		cfg:        cfg,
-		scriptPath: scriptPath,
-		scriptArgs: scriptArgs,
-		L:          lua.NewState(),
-		redisMsgCh: make(chan redisCallback, 32),
+		log:            log,
+		cfg:            cfg,
+		scriptPath:     scriptPath,
+		scriptArgs:     scriptArgs,
+		L:              lua.NewState(),
+		redisMsgCh:     make(chan redisCallback, 32),
+		reregisteredCh: make(chan struct{}, 1),
 	}
 }
 
@@ -141,6 +153,8 @@ func (e *Engine) Run(ctx context.Context) error {
 			e.dispatchEvent(ev)
 		case msg := <-e.redisMsgCh:
 			e.callLua(msg.fn, lua.LString(msg.payload), lua.LString(msg.channel))
+		case <-e.reregisteredCh:
+			e.callLua(e.onRegistered)
 		case <-ticker.C:
 			e.runDueTimers()
 		}
@@ -316,7 +330,14 @@ func isRetryable(err error) bool {
 // subscribeEventsLoop runs on its own goroutine, forwarding StationEvents
 // to out for the main goroutine to dispatch into Lua. On any stream error
 // it re-registers (ephemeral audio-server state may have been lost if it
-// restarted) and reconnects the stream, with exponential backoff.
+// restarted -- including the entire queue, which the server-side registry
+// recreates empty) and reconnects the stream, with exponential backoff.
+// Each successful re-registration also fires onRegistered (via
+// reregisteredCh), specifically so a script can re-prime a queue that a
+// server restart may have wiped -- radio.on_queue_low alone can't recover
+// from that, since its edge trigger only fires on a transition into "low"
+// from "not low," and a freshly recreated station starts with an empty
+// queue and no memory of ever having been otherwise.
 func (e *Engine) subscribeEventsLoop(ctx context.Context, out chan<- *audioserverv1.StationEvent) {
 	backoff := time.Second
 	const maxBackoff = 30 * time.Second
@@ -359,6 +380,11 @@ func (e *Engine) subscribeEventsLoop(ctx context.Context, out chan<- *audioserve
 		info := e.getRegisterInfo()
 		if _, err := e.registerWithRetry(ctx, info.slug, info.name, info.description, info.logoURL, info.metadata, info.lowQueueThreshold); err != nil {
 			return
+		}
+		e.log.Info("re-registered after reconnect", "slug", info.slug)
+		select {
+		case e.reregisteredCh <- struct{}{}:
+		default:
 		}
 		if !e.sleepBackoff(ctx, &backoff, maxBackoff) {
 			return

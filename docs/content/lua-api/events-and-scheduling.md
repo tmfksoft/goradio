@@ -95,6 +95,35 @@ threshold and dips again — so a callback that queues exactly one track at a
 time won't be called repeatedly while the queue happens to sit at or below
 threshold. No-op (never fires) unless `low_queue_threshold` was set > 0.
 
+!!! warning "This alone can't recover a queue after the audio server restarts"
+    `on_queue_low`'s edge trigger only fires on a transition *into* "low"
+    from "not low." If the audio server restarts while you're
+    disconnected, its registry — and this station's entire queue — comes
+    back empty when the engine automatically re-registers you (see
+    `on_register` below), and an empty queue that's been empty from the
+    moment it was created never has a "not low → low" transition to
+    trigger on. Prime the queue in `on_register`, not just once at the top
+    of your script, if you want playback to actually resume after that.
+
+### `radio.on_register(fn)`
+
+```lua
+radio.on_register(function()
+  queue_something()  -- whatever you'd otherwise only do once at startup
+end)
+```
+
+Fired every time the engine *automatically* (re-)registers this station
+after the connection to the audio server dropped and came back — never
+for your own script's `radio.register()` call. This is the only reliable
+place to re-prime a queue that a server restart may have wiped (see the
+warning above) — a script that only queues its first track once, at the
+top of the file, goes silent after such a restart otherwise, since nothing
+else will ever queue another track for it. Cheap to make idempotent: check
+`radio.status().queue_length` first if you don't want to add a redundant
+track on a reconnect where the queue was actually still healthy (e.g. a
+brief network blip that didn't restart the server itself).
+
 ### Events without a Lua callback (yet)
 
 The protocol also defines `QUEUE_UPDATED`, `LISTENER_COUNT_CHANGED`,

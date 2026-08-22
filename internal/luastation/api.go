@@ -49,12 +49,14 @@ func (e *Engine) setupLuaEnvironment() {
 		"seek_by":          e.luaSeekBy,
 		"status":           e.luaStatus,
 		"list_stations":    e.luaListStations,
+		"server_info":      e.luaServerInfo,
 		"every":            e.luaEvery,
 		"after":            e.luaAfter,
 		"on_track_started": e.luaOnTrackStarted,
 		"on_track_ended":   e.luaOnTrackEnded,
 		"on_error":         e.luaOnError,
 		"on_queue_low":     e.luaOnQueueLow,
+		"on_register":      e.luaOnRegister,
 	})
 
 	L.SetGlobal("radio", radioTable)
@@ -514,6 +516,27 @@ func (e *Engine) luaListStations(L *lua.LState) int {
 	return 1
 }
 
+// radio.server_info() -> {version}
+//
+// Reports the audio server's build version -- "dev" for a locally built
+// binary with no version baked in via -ldflags. Not scoped to any
+// station, same as radio.list_stations().
+func (e *Engine) luaServerInfo(L *lua.LState) int {
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.GetServerInfo(ctx, &audioserverv1.GetServerInfoRequest{})
+	if err != nil {
+		L.RaiseError("radio.server_info failed: %v", err)
+		return 0
+	}
+
+	tbl := L.NewTable()
+	tbl.RawSetString("version", lua.LString(resp.GetVersion()))
+	L.Push(tbl)
+	return 1
+}
+
 func queuedItemToLua(L *lua.LState, item *audioserverv1.QueuedItemStatus) *lua.LTable {
 	tbl := L.NewTable()
 	tbl.RawSetString("queue_id", lua.LString(item.GetQueueId()))
@@ -579,6 +602,22 @@ func (e *Engine) luaOnError(L *lua.LState) int {
 // radio.register. No-op unless that threshold was set > 0.
 func (e *Engine) luaOnQueueLow(L *lua.LState) int {
 	e.onQueueLow = L.CheckFunction(1)
+	return 0
+}
+
+// radio.on_register(fn): fn is called every time the engine
+// *automatically* (re-)registers this station after the connection to the
+// audio server dropped and came back -- never for the radio.register()
+// call your own script makes explicitly. Use it to re-prime anything that
+// only ever happens once at script startup today (most commonly, queueing
+// a first track): if the audio server itself restarted while disconnected,
+// its registry -- and this station's entire queue -- comes back empty,
+// and radio.on_queue_low alone won't rescue that, since its edge trigger
+// only fires on a transition into "low" from "not low," which never
+// happens on its own for a queue that's been empty from the moment it was
+// recreated.
+func (e *Engine) luaOnRegister(L *lua.LState) int {
+	e.onRegistered = L.CheckFunction(1)
 	return 0
 }
 

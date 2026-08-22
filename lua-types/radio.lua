@@ -86,6 +86,9 @@
 ---@field logo_url string
 ---@field metadata table<string, string>
 
+---@class RadioServerInfo
+---@field version string # "dev" for a locally built binary with no version baked in via -ldflags
+
 ---@class radiolib
 ---@field args string[] # CLI args after --config/--script, e.g. {"myfm", "My FM"}
 radio = {}
@@ -199,6 +202,11 @@ function radio.status() end
 ---@return RadioStationSummary[]
 function radio.list_stations() end
 
+--- Reports the audio server's build version. Not scoped to any station,
+--- same as radio.list_stations().
+---@return RadioServerInfo
+function radio.server_info() end
+
 --- Calls fn repeatedly, once every `seconds`.
 ---@param seconds number
 ---@param fn fun()
@@ -229,3 +237,15 @@ function radio.on_error(fn) end
 --- No-op unless that threshold was set > 0.
 ---@param fn fun(ev: RadioQueueLowEvent)
 function radio.on_queue_low(fn) end
+
+--- fn is called every time the engine *automatically* (re-)registers this
+--- station after the connection to the audio server dropped and came back
+--- -- never for your own script's radio.register() call. Use it to
+--- re-prime anything that only happens once at startup today (most
+--- commonly, queueing a first track): if the audio server itself
+--- restarted while disconnected, its registry -- and this station's
+--- entire queue -- comes back empty, and radio.on_queue_low alone can't
+--- rescue that on its own, since its edge trigger only fires transitioning
+--- into "low" from "not low."
+---@param fn fun()
+function radio.on_register(fn) end
