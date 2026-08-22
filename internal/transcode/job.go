@@ -2,6 +2,7 @@ package transcode
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"os"
 
@@ -86,9 +87,20 @@ func (p *Pool) durationSeconds(path string) int64 {
 	return info.Size() / int64(bytesPerSecond)
 }
 
-// Prefetch enqueues item for background resolve+transcode. Dispatch blocks
-// the caller only if the job buffer (64 deep) is full, which bounds how
-// many concurrent ffmpeg processes a burst of QueueTrack calls can spawn.
+// Prefetch enqueues item for background resolve+transcode. Never blocks:
+// Prefetch runs synchronously inside the QueueTrack gRPC handler, so a
+// blocking send here would hang that call -- and, since a saturated pool
+// stays saturated until something drains it, every other QueueTrack call
+// piling up behind it too -- rather than surfacing a fast, clear signal
+// that the server is overloaded. If the job buffer (64 deep) is already
+// full, item fails immediately with PREFETCH_QUEUE_FULL instead.
 func (p *Pool) Prefetch(item *playback.QueuedItem) {
-	p.jobs <- item
+	select {
+	case p.jobs <- item:
+	default:
+		item.MarkFailed(
+			fmt.Errorf("prefetch queue full (%d jobs already pending) -- server is overloaded, try again shortly", cap(p.jobs)),
+			"PREFETCH_QUEUE_FULL",
+		)
+	}
 }

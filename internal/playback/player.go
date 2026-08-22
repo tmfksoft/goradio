@@ -85,7 +85,7 @@ func (s *Station) Run(ctx context.Context, log *slog.Logger, cfg PlayerConfig) {
 
 		if item.Err() != nil {
 			log.Warn("skipping queue item that failed to prefetch", "slug", s.Slug, "queue_id", item.ID, "error", item.Err())
-			s.PublishError(item.Err().Error(), "TRANSCODE_FAILED")
+			s.PublishError(item.Err().Error(), item.ErrCode())
 			continue
 		}
 

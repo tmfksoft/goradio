@@ -26,6 +26,7 @@ type QueuedItem struct {
 	isLive          bool
 	liveURL         string
 	err             error
+	errCode         string
 }
 
 // NewQueuedItem creates a not-yet-ready queue item. Call MarkReady once
@@ -47,6 +48,17 @@ func (q *QueuedItem) MarkReady(localPath string, durationSeconds int64, err erro
 	q.localPath = localPath
 	q.durationSeconds = durationSeconds
 	q.err = err
+	close(q.ready)
+}
+
+// MarkFailed is MarkReady's failure-only variant for a caller that needs
+// to report a specific error code instead of the default "TRANSCODE_FAILED"
+// ErrCode falls back to -- e.g. the prefetch pool rejecting an item
+// outright because its job queue is saturated, which isn't actually a
+// transcode failure at all.
+func (q *QueuedItem) MarkFailed(err error, code string) {
+	q.err = err
+	q.errCode = code
 	close(q.ready)
 }
 
@@ -81,6 +93,16 @@ func (q *QueuedItem) LiveURL() string { return q.liveURL }
 // Err explains why prefetch failed, if it did. Only valid after Ready is
 // closed.
 func (q *QueuedItem) Err() error { return q.err }
+
+// ErrCode is the error code to report alongside Err() -- "TRANSCODE_FAILED"
+// unless MarkFailed set something more specific. Only valid after Ready is
+// closed and Err() is non-nil.
+func (q *QueuedItem) ErrCode() string {
+	if q.errCode == "" {
+		return "TRANSCODE_FAILED"
+	}
+	return q.errCode
+}
 
 // Queue is a station's thread-safe FIFO of QueuedItems.
 type Queue struct {
