@@ -49,7 +49,6 @@ func (e *Engine) setupLuaEnvironment() {
 		"seek_by":          e.luaSeekBy,
 		"status":           e.luaStatus,
 		"list_stations":    e.luaListStations,
-		"server_info":      e.luaServerInfo,
 		"every":            e.luaEvery,
 		"after":            e.luaAfter,
 		"on_track_started": e.luaOnTrackStarted,
@@ -512,27 +511,6 @@ func (e *Engine) luaListStations(L *lua.LState) int {
 		row.RawSetString("metadata", stringMapToLuaTable(L, st.GetMetadata()))
 		tbl.Append(row)
 	}
-	L.Push(tbl)
-	return 1
-}
-
-// radio.server_info() -> {version}
-//
-// Reports the audio server's build version -- "dev" for a locally built
-// binary with no version baked in via -ldflags. Not scoped to any
-// station, same as radio.list_stations().
-func (e *Engine) luaServerInfo(L *lua.LState) int {
-	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
-	defer cancel()
-
-	resp, err := e.client.GetServerInfo(ctx, &audioserverv1.GetServerInfoRequest{})
-	if err != nil {
-		L.RaiseError("radio.server_info failed: %v", err)
-		return 0
-	}
-
-	tbl := L.NewTable()
-	tbl.RawSetString("version", lua.LString(resp.GetVersion()))
 	L.Push(tbl)
 	return 1
 }
