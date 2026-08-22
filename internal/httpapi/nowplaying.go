@@ -25,18 +25,41 @@ type nowPlayingTrack struct {
 	Location        string `json:"location,omitempty"`
 	Title           string `json:"title,omitempty"`
 	Artist          string `json:"artist,omitempty"`
+	CoverArtUrl     string `json:"cover_art_url,omitempty"`
 	Mode            string `json:"mode,omitempty"`
 	DurationSeconds int64  `json:"duration_seconds"` // 0 = unknown/indefinite (live relay)
 }
 
+// nowPlayingHistoryEntry mirrors HistoryEntryStatus. Unlike current_track
+// and queue, the whole history array is withheld from the public
+// (unauthenticated) response rather than just having queue_id/location/
+// mode stripped from it -- a full play-log is more revealing than a
+// single current/pending snapshot, so it gets the same bar as those
+// per-item fields rather than the lower one current_track/queue use.
+type nowPlayingHistoryEntry struct {
+	QueueID         string `json:"queue_id,omitempty"`
+	Location        string `json:"location,omitempty"`
+	Title           string `json:"title,omitempty"`
+	Artist          string `json:"artist,omitempty"`
+	CoverArtUrl     string `json:"cover_art_url,omitempty"`
+	Mode            string `json:"mode,omitempty"`
+	DurationSeconds int64  `json:"duration_seconds"`
+	Reason          string `json:"reason"`
+	EndedAtUnixMs   int64  `json:"ended_at_unix_ms"`
+}
+
 type nowPlayingResponse struct {
-	Slug                       string            `json:"slug"`
-	Name                       string            `json:"name"`
-	IsSilence                  bool              `json:"is_silence"`
-	CurrentTrack               *nowPlayingTrack  `json:"current_track,omitempty"`
-	CurrentTrackElapsedSeconds int64             `json:"current_track_elapsed_seconds,omitempty"`
-	ListenerCount              int64             `json:"listener_count"`
-	Queue                      []nowPlayingTrack `json:"queue"`
+	Slug                       string                   `json:"slug"`
+	Name                       string                   `json:"name"`
+	IsSilence                  bool                     `json:"is_silence"`
+	IsPaused                   bool                     `json:"is_paused"`
+	LogoUrl                    string                   `json:"logo_url,omitempty"`
+	Metadata                   map[string]string        `json:"metadata,omitempty"`
+	CurrentTrack               *nowPlayingTrack         `json:"current_track,omitempty"`
+	CurrentTrackElapsedSeconds int64                    `json:"current_track_elapsed_seconds,omitempty"`
+	ListenerCount              int64                    `json:"listener_count"`
+	Queue                      []nowPlayingTrack        `json:"queue"`
+	History                    []nowPlayingHistoryEntry `json:"history,omitempty"`
 }
 
 // nowPlayingHandler implements GET /stations/{slug}/now-playing: a JSON
@@ -45,15 +68,24 @@ type nowPlayingResponse struct {
 // HTML/JS radio player with a progress bar, a Discord bot, etc.
 //
 // Public by default, like /stream/{slug} and /stations -- title, artist,
-// duration, elapsed time, and listener count carry no more information
-// than you could already get by listening to the (already public,
-// unauthenticated) stream itself. Present a valid bearer token (any
-// token authorized for this slug, including a read-only one -- this
-// never mutates anything) to additionally get queue_id, the raw
-// location, and mode, which can reveal filesystem layout or upstream
-// URLs and so aren't handed out for free. An Authorization header that's
-// present but invalid is rejected outright rather than silently
-// downgraded to the public view, so a typo'd token fails loudly.
+// cover art, duration, elapsed time, pause state, logo, metadata, and
+// listener count carry no more information than you could already get by
+// listening to the (already public, unauthenticated) stream itself, or
+// are just descriptive station-level info the operator set to be shown.
+// Present a valid bearer token (any token authorized for this slug,
+// including a read-only one -- this never mutates anything) to
+// additionally get:
+//   - queue_id, the raw location, and mode on current_track/queue items,
+//     which can reveal filesystem layout or upstream URLs and so aren't
+//     handed out for free.
+//   - history at all -- a full recently-played log is more revealing
+//     than the current/pending snapshot, so it's withheld entirely from
+//     the public response rather than just having those same fields
+//     stripped from it.
+//
+// An Authorization header that's present but invalid is rejected outright
+// rather than silently downgraded to the public view, so a typo'd token
+// fails loudly.
 func nowPlayingHandler(reg *registry.Registry, jwtSecret []byte) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		slug := r.PathValue("slug")
@@ -89,6 +121,9 @@ func buildNowPlaying(st *playback.Station, detailed bool) nowPlayingResponse {
 		Slug:          st.Slug,
 		Name:          st.Name(),
 		IsSilence:     st.IsSilence(),
+		IsPaused:      st.IsPaused(),
+		LogoUrl:       st.LogoURL(),
+		Metadata:      st.Metadata(),
 		ListenerCount: int64(st.Broadcaster.ListenerCount()),
 		Queue:         []nowPlayingTrack{},
 	}
@@ -103,6 +138,22 @@ func buildNowPlaying(st *playback.Station, detailed bool) nowPlayingResponse {
 		resp.Queue = append(resp.Queue, nowPlayingTrackOf(item.ID, item.Source, item.Mode.String(), item.DurationSeconds(), detailed))
 	}
 
+	if detailed {
+		for _, h := range st.History() {
+			resp.History = append(resp.History, nowPlayingHistoryEntry{
+				QueueID:         h.Item.ID,
+				Location:        h.Item.Source.GetLocation(),
+				Title:           h.Item.Source.GetDisplayTitle(),
+				Artist:          h.Item.Source.GetDisplayArtist(),
+				CoverArtUrl:     h.Item.Source.GetCoverArtUrl(),
+				Mode:            h.Item.Mode.String(),
+				DurationSeconds: h.Item.DurationSeconds(),
+				Reason:          h.Reason,
+				EndedAtUnixMs:   h.EndedAt.UnixMilli(),
+			})
+		}
+	}
+
 	return resp
 }
 
@@ -110,6 +161,7 @@ func nowPlayingTrackOf(queueID string, source *audioserverv1.TrackSource, mode s
 	t := nowPlayingTrack{
 		Title:           source.GetDisplayTitle(),
 		Artist:          source.GetDisplayArtist(),
+		CoverArtUrl:     source.GetCoverArtUrl(),
 		DurationSeconds: durationSeconds,
 	}
 	if detailed {

@@ -10,10 +10,12 @@ same live station state gRPC does.
 ## Public by default
 
 Like `/stream/{slug}` and `/stations`, this route needs **no
-authentication** to call. Title, artist, duration, elapsed time, and
-listener count carry no more information than you could already get by
-listening to the (already public, unauthenticated) audio stream itself —
-so there's nothing gained by gating that behind a token.
+authentication** to call. Title, artist, cover art, duration, elapsed
+time, pause state, logo, metadata, and listener count carry no more
+information than you could already get by listening to the (already
+public, unauthenticated) audio stream itself, or are just descriptive
+station-level info the operator set to be shown — so there's nothing
+gained by gating any of that behind a token.
 
 ```sh
 curl https://your-server/stations/myfm/now-playing
@@ -24,9 +26,13 @@ curl https://your-server/stations/myfm/now-playing
   "slug": "myfm",
   "name": "My FM",
   "is_silence": false,
+  "is_paused": false,
+  "logo_url": "https://example.com/myfm.png",
+  "metadata": {"group": "top-40"},
   "current_track": {
     "title": "Test Song",
     "artist": "Test Artist",
+    "cover_art_url": "https://example.com/test-song.jpg",
     "duration_seconds": 210
   },
   "current_track_elapsed_seconds": 42,
@@ -40,13 +46,24 @@ curl https://your-server/stations/myfm/now-playing
 `duration_seconds` is `0` for a live relay (no fixed length) or a
 just-queued item whose prefetch hasn't finished yet — render an
 indefinite/pulsing progress bar instead of a fixed-length one when it's
-`0`, rather than dividing by zero.
+`0`, rather than dividing by zero. `is_paused` and
+`current_track_elapsed_seconds` both already account for
+[`Pause`](protocol-reference.md#pause-resume)/[`Seek`](protocol-reference.md#seek-seekby)
+correctly — elapsed freezes while paused rather than just tracking
+wall-clock time. `logo_url` and `metadata` are omitted entirely (not just
+empty) when the station never set them.
 
-## Authenticated: raw locations too
+## Authenticated: raw locations, and history
 
 Presenting a valid bearer token (any token authorized for the slug,
 **including a read-only one** — this endpoint never mutates anything)
-unlocks `queue_id`, the raw `location`, and `mode` on every track:
+unlocks two things:
+
+- `queue_id`, the raw `location`, and `mode` on every `current_track`/`queue` item.
+- `history` at all — omitted entirely from the public response, not just
+  stripped down, since a full recently-played log reveals more about a
+  station's playout pattern over time than a single current/pending
+  snapshot does.
 
 ```sh
 curl -H "Authorization: Bearer $TOKEN" https://your-server/stations/myfm/now-playing
@@ -59,18 +76,29 @@ curl -H "Authorization: Bearer $TOKEN" https://your-server/stations/myfm/now-pla
     "location": "song.mp3",
     "title": "Test Song",
     "artist": "Test Artist",
+    "cover_art_url": "https://example.com/test-song.jpg",
     "mode": "QUEUE_MODE_APPEND",
     "duration_seconds": 210
   },
+  "history": [
+    {
+      "queue_id": "a1b2c3d4-...",
+      "location": "jingle.mp3",
+      "title": "Station ID",
+      "reason": "completed",
+      "ended_at_unix_ms": 1700000000000,
+      "duration_seconds": 8
+    }
+  ],
   ...
 }
 ```
 
-These fields are held back from the public response deliberately:
-`location` can be a raw filesystem path under `audio.audio_root`, or an
-upstream URL for a live relay — which might itself embed something like a
-query-string auth token. None of that belongs in a response anyone who
-knows a station's slug can read.
+These are held back from the public response deliberately: `location` can
+be a raw filesystem path under `audio.audio_root`, or an upstream URL for
+a live relay — which might itself embed something like a query-string
+auth token. None of that belongs in a response anyone who knows a
+station's slug can read, and neither does a play-history log.
 
 An `Authorization` header that's present but invalid (bad token, wrong
 signature, expired) gets a hard `401` — it's never silently downgraded to
