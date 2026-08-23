@@ -23,7 +23,7 @@ build_platform() {
 
   echo "==> building ${goos}/${goarch}"
   (cd "$ROOT_DIR" && GOOS="$goos" GOARCH="$goarch" CGO_ENABLED=0 \
-    go build -trimpath -ldflags "-s -w" -o "$out_dir/radio${ext}" ./cmd/radio)
+    go build -trimpath -ldflags "-s -w -X github.com/tmfksoft/goradio/internal/version.Version=${VERSION}" -o "$out_dir/radio${ext}" ./cmd/radio)
 
   cp "$ROOT_DIR/configs/server.example.yaml" "$out_dir/"
   cp "$ROOT_DIR/configs/station.example.yaml" "$out_dir/"

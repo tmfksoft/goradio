@@ -33,6 +33,7 @@ const (
 	AudioServerService_SeekBy_FullMethodName            = "/audioserver.v1.AudioServerService/SeekBy"
 	AudioServerService_GetStatus_FullMethodName         = "/audioserver.v1.AudioServerService/GetStatus"
 	AudioServerService_SubscribeEvents_FullMethodName   = "/audioserver.v1.AudioServerService/SubscribeEvents"
+	AudioServerService_GetServerInfo_FullMethodName     = "/audioserver.v1.AudioServerService/GetServerInfo"
 )
 
 // AudioServerServiceClient is the client API for AudioServerService service.
@@ -53,6 +54,7 @@ type AudioServerServiceClient interface {
 	SeekBy(ctx context.Context, in *SeekByRequest, opts ...grpc.CallOption) (*SeekByResponse, error)
 	GetStatus(ctx context.Context, in *GetStatusRequest, opts ...grpc.CallOption) (*GetStatusResponse, error)
 	SubscribeEvents(ctx context.Context, in *SubscribeEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[StationEvent], error)
+	GetServerInfo(ctx context.Context, in *GetServerInfoRequest, opts ...grpc.CallOption) (*GetServerInfoResponse, error)
 }
 
 type audioServerServiceClient struct {
@@ -212,6 +214,16 @@ func (c *audioServerServiceClient) SubscribeEvents(ctx context.Context, in *Subs
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AudioServerService_SubscribeEventsClient = grpc.ServerStreamingClient[StationEvent]
 
+func (c *audioServerServiceClient) GetServerInfo(ctx context.Context, in *GetServerInfoRequest, opts ...grpc.CallOption) (*GetServerInfoResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetServerInfoResponse)
+	err := c.cc.Invoke(ctx, AudioServerService_GetServerInfo_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AudioServerServiceServer is the server API for AudioServerService service.
 // All implementations must embed UnimplementedAudioServerServiceServer
 // for forward compatibility.
@@ -230,6 +242,7 @@ type AudioServerServiceServer interface {
 	SeekBy(context.Context, *SeekByRequest) (*SeekByResponse, error)
 	GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error)
 	SubscribeEvents(*SubscribeEventsRequest, grpc.ServerStreamingServer[StationEvent]) error
+	GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error)
 	mustEmbedUnimplementedAudioServerServiceServer()
 }
 
@@ -281,6 +294,9 @@ func (UnimplementedAudioServerServiceServer) GetStatus(context.Context, *GetStat
 }
 func (UnimplementedAudioServerServiceServer) SubscribeEvents(*SubscribeEventsRequest, grpc.ServerStreamingServer[StationEvent]) error {
 	return status.Error(codes.Unimplemented, "method SubscribeEvents not implemented")
+}
+func (UnimplementedAudioServerServiceServer) GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetServerInfo not implemented")
 }
 func (UnimplementedAudioServerServiceServer) mustEmbedUnimplementedAudioServerServiceServer() {}
 func (UnimplementedAudioServerServiceServer) testEmbeddedByValue()                            {}
@@ -548,6 +564,24 @@ func _AudioServerService_SubscribeEvents_Handler(srv interface{}, stream grpc.Se
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AudioServerService_SubscribeEventsServer = grpc.ServerStreamingServer[StationEvent]
 
+func _AudioServerService_GetServerInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetServerInfoRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AudioServerServiceServer).GetServerInfo(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AudioServerService_GetServerInfo_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AudioServerServiceServer).GetServerInfo(ctx, req.(*GetServerInfoRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AudioServerService_ServiceDesc is the grpc.ServiceDesc for AudioServerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -606,6 +640,10 @@ var AudioServerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStatus",
 			Handler:    _AudioServerService_GetStatus_Handler,
+		},
+		{
+			MethodName: "GetServerInfo",
+			Handler:    _AudioServerService_GetServerInfo_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

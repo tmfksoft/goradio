@@ -1,0 +1,18 @@
+syntax = "proto3";
+
+package audioserver.v1;
+
+option go_package = "github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1";
+
+// GetServerInfoRequest requests audio server build/version info. Not
+// scoped to any station -- callers only need a valid token, not one
+// authorized for a particular slug (same authorization model as
+// ListStations).
+message GetServerInfoRequest {}
+
+message GetServerInfoResponse {
+  // The audio server's build version, e.g. "v0.9.0" -- matches the git
+  // tag a release binary was built from. "dev" for a locally built
+  // binary with no version baked in via -ldflags.
+  string version = 1;
+}

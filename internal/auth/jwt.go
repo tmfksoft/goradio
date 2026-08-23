@@ -15,7 +15,8 @@ import (
 // station slug listed in Slugs. Entries may be glob patterns (as understood
 // by path/filepath's Match, e.g. "*" for every station or "test-*" for a
 // prefix); see HasSlug. If ReadOnly is true, that's restricted to
-// read-only calls (GetStatus, SubscribeEvents) -- every write RPC
+// read-only calls (GetStatus, ListStations, SubscribeEvents,
+// GetServerInfo) -- every write RPC
 // (RegisterStation, UnregisterStation, QueueTrack, RemoveFromQueue,
 // ClearQueue, Skip, SkipTo, Pause, Resume, Seek, SeekBy) requires
 // ReadOnly to be false; see RequireWrite.

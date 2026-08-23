@@ -14,6 +14,7 @@ import (
 	"github.com/tmfksoft/goradio/internal/auth"
 	"github.com/tmfksoft/goradio/internal/playback"
 	"github.com/tmfksoft/goradio/internal/registry"
+	"github.com/tmfksoft/goradio/internal/version"
 )
 
 // Prefetcher dispatches a queued item's download/transcode job. Handed in
@@ -401,6 +402,16 @@ func (s *Server) SubscribeEvents(req *audioserverv1.SubscribeEventsRequest, stre
 			}
 		}
 	}
+}
+
+// GetServerInfo reports the audio server's build version. Not scoped to
+// any station -- unlike every other RPC here, it doesn't call
+// auth.RequireSlug, since the interceptor (see internal/auth/interceptor.go)
+// already rejects any unauthenticated call before this handler runs; no
+// further per-slug authorization applies to a fact about the server
+// itself, same reasoning as ListStations not needing it either.
+func (s *Server) GetServerInfo(ctx context.Context, req *audioserverv1.GetServerInfoRequest) (*audioserverv1.GetServerInfoResponse, error) {
+	return &audioserverv1.GetServerInfoResponse{Version: version.Version}, nil
 }
 
 func queuedItemToStatus(item *playback.QueuedItem) *audioserverv1.QueuedItemStatus {

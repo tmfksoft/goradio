@@ -19,10 +19,11 @@ service AudioServerService {
   rpc SeekBy(SeekByRequest) returns (SeekByResponse);
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc SubscribeEvents(SubscribeEventsRequest) returns (stream StationEvent);
+  rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse);
 }
 ```
 
-Fourteen RPCs: thirteen unary commands, one server-streaming feed of
+Fifteen RPCs: fourteen unary commands, one server-streaming feed of
 events. There is no bidirectional streaming — commands are always plain
 request/response.
 
@@ -533,3 +534,24 @@ This is a server-streaming RPC: it stays open and pushes events as they
 happen until you cancel the context or the server closes it (e.g. on
 shutdown). If it closes unexpectedly, reconnect — see
 [Writing a Controller](writing-a-controller.md#reconnecting).
+
+## GetServerInfo
+
+```proto
+message GetServerInfoRequest {}
+
+message GetServerInfoResponse {
+  string version = 1;
+}
+```
+
+Reports the audio server's build version. Not scoped to any station —
+like `ListStations`, it just needs a valid token, not one authorized for
+a particular slug, since there's no per-station authorization decision to
+make for a fact about the server itself.
+
+`version` matches the git tag a release binary was built from (e.g.
+`"v0.9.0"`), baked in at build time via `-ldflags`
+(`scripts/package-release.sh`/`.github/workflows/release.yml`). A locally
+built binary (`go build`/`make build` with no `-ldflags` override)
+reports `"dev"`.

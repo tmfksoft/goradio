@@ -24,7 +24,7 @@ var File_audioserver_v1_audioserver_proto protoreflect.FileDescriptor
 
 const file_audioserver_v1_audioserver_proto_rawDesc = "" +
 	"\n" +
-	" audioserver/v1/audioserver.proto\x12\x0eaudioserver.v1\x1a\x1caudioserver/v1/station.proto\x1a\x1aaudioserver/v1/queue.proto\x1a\x1baudioserver/v1/status.proto\x1a\x1baudioserver/v1/events.proto2\x9f\t\n" +
+	" audioserver/v1/audioserver.proto\x12\x0eaudioserver.v1\x1a\x1caudioserver/v1/station.proto\x1a\x1aaudioserver/v1/queue.proto\x1a\x1baudioserver/v1/status.proto\x1a\x1baudioserver/v1/events.proto\x1a\x1baudioserver/v1/server.proto2\xfd\t\n" +
 	"\x12AudioServerService\x12b\n" +
 	"\x0fRegisterStation\x12&.audioserver.v1.RegisterStationRequest\x1a'.audioserver.v1.RegisterStationResponse\x12h\n" +
 	"\x11UnregisterStation\x12(.audioserver.v1.UnregisterStationRequest\x1a).audioserver.v1.UnregisterStationResponse\x12Y\n" +
@@ -41,7 +41,8 @@ const file_audioserver_v1_audioserver_proto_rawDesc = "" +
 	"\x04Seek\x12\x1b.audioserver.v1.SeekRequest\x1a\x1c.audioserver.v1.SeekResponse\x12G\n" +
 	"\x06SeekBy\x12\x1d.audioserver.v1.SeekByRequest\x1a\x1e.audioserver.v1.SeekByResponse\x12P\n" +
 	"\tGetStatus\x12 .audioserver.v1.GetStatusRequest\x1a!.audioserver.v1.GetStatusResponse\x12Y\n" +
-	"\x0fSubscribeEvents\x12&.audioserver.v1.SubscribeEventsRequest\x1a\x1c.audioserver.v1.StationEvent0\x01BAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\x0fSubscribeEvents\x12&.audioserver.v1.SubscribeEventsRequest\x1a\x1c.audioserver.v1.StationEvent0\x01\x12\\\n" +
+	"\rGetServerInfo\x12$.audioserver.v1.GetServerInfoRequest\x1a%.audioserver.v1.GetServerInfoResponseBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var file_audioserver_v1_audioserver_proto_goTypes = []any{
 	(*RegisterStationRequest)(nil),    // 0: audioserver.v1.RegisterStationRequest
@@ -58,20 +59,22 @@ var file_audioserver_v1_audioserver_proto_goTypes = []any{
 	(*SeekByRequest)(nil),             // 11: audioserver.v1.SeekByRequest
 	(*GetStatusRequest)(nil),          // 12: audioserver.v1.GetStatusRequest
 	(*SubscribeEventsRequest)(nil),    // 13: audioserver.v1.SubscribeEventsRequest
-	(*RegisterStationResponse)(nil),   // 14: audioserver.v1.RegisterStationResponse
-	(*UnregisterStationResponse)(nil), // 15: audioserver.v1.UnregisterStationResponse
-	(*ListStationsResponse)(nil),      // 16: audioserver.v1.ListStationsResponse
-	(*QueueTrackResponse)(nil),        // 17: audioserver.v1.QueueTrackResponse
-	(*RemoveFromQueueResponse)(nil),   // 18: audioserver.v1.RemoveFromQueueResponse
-	(*ClearQueueResponse)(nil),        // 19: audioserver.v1.ClearQueueResponse
-	(*SkipResponse)(nil),              // 20: audioserver.v1.SkipResponse
-	(*SkipToResponse)(nil),            // 21: audioserver.v1.SkipToResponse
-	(*PauseResponse)(nil),             // 22: audioserver.v1.PauseResponse
-	(*ResumeResponse)(nil),            // 23: audioserver.v1.ResumeResponse
-	(*SeekResponse)(nil),              // 24: audioserver.v1.SeekResponse
-	(*SeekByResponse)(nil),            // 25: audioserver.v1.SeekByResponse
-	(*GetStatusResponse)(nil),         // 26: audioserver.v1.GetStatusResponse
-	(*StationEvent)(nil),              // 27: audioserver.v1.StationEvent
+	(*GetServerInfoRequest)(nil),      // 14: audioserver.v1.GetServerInfoRequest
+	(*RegisterStationResponse)(nil),   // 15: audioserver.v1.RegisterStationResponse
+	(*UnregisterStationResponse)(nil), // 16: audioserver.v1.UnregisterStationResponse
+	(*ListStationsResponse)(nil),      // 17: audioserver.v1.ListStationsResponse
+	(*QueueTrackResponse)(nil),        // 18: audioserver.v1.QueueTrackResponse
+	(*RemoveFromQueueResponse)(nil),   // 19: audioserver.v1.RemoveFromQueueResponse
+	(*ClearQueueResponse)(nil),        // 20: audioserver.v1.ClearQueueResponse
+	(*SkipResponse)(nil),              // 21: audioserver.v1.SkipResponse
+	(*SkipToResponse)(nil),            // 22: audioserver.v1.SkipToResponse
+	(*PauseResponse)(nil),             // 23: audioserver.v1.PauseResponse
+	(*ResumeResponse)(nil),            // 24: audioserver.v1.ResumeResponse
+	(*SeekResponse)(nil),              // 25: audioserver.v1.SeekResponse
+	(*SeekByResponse)(nil),            // 26: audioserver.v1.SeekByResponse
+	(*GetStatusResponse)(nil),         // 27: audioserver.v1.GetStatusResponse
+	(*StationEvent)(nil),              // 28: audioserver.v1.StationEvent
+	(*GetServerInfoResponse)(nil),     // 29: audioserver.v1.GetServerInfoResponse
 }
 var file_audioserver_v1_audioserver_proto_depIdxs = []int32{
 	0,  // 0: audioserver.v1.AudioServerService.RegisterStation:input_type -> audioserver.v1.RegisterStationRequest
@@ -88,22 +91,24 @@ var file_audioserver_v1_audioserver_proto_depIdxs = []int32{
 	11, // 11: audioserver.v1.AudioServerService.SeekBy:input_type -> audioserver.v1.SeekByRequest
 	12, // 12: audioserver.v1.AudioServerService.GetStatus:input_type -> audioserver.v1.GetStatusRequest
 	13, // 13: audioserver.v1.AudioServerService.SubscribeEvents:input_type -> audioserver.v1.SubscribeEventsRequest
-	14, // 14: audioserver.v1.AudioServerService.RegisterStation:output_type -> audioserver.v1.RegisterStationResponse
-	15, // 15: audioserver.v1.AudioServerService.UnregisterStation:output_type -> audioserver.v1.UnregisterStationResponse
-	16, // 16: audioserver.v1.AudioServerService.ListStations:output_type -> audioserver.v1.ListStationsResponse
-	17, // 17: audioserver.v1.AudioServerService.QueueTrack:output_type -> audioserver.v1.QueueTrackResponse
-	18, // 18: audioserver.v1.AudioServerService.RemoveFromQueue:output_type -> audioserver.v1.RemoveFromQueueResponse
-	19, // 19: audioserver.v1.AudioServerService.ClearQueue:output_type -> audioserver.v1.ClearQueueResponse
-	20, // 20: audioserver.v1.AudioServerService.Skip:output_type -> audioserver.v1.SkipResponse
-	21, // 21: audioserver.v1.AudioServerService.SkipTo:output_type -> audioserver.v1.SkipToResponse
-	22, // 22: audioserver.v1.AudioServerService.Pause:output_type -> audioserver.v1.PauseResponse
-	23, // 23: audioserver.v1.AudioServerService.Resume:output_type -> audioserver.v1.ResumeResponse
-	24, // 24: audioserver.v1.AudioServerService.Seek:output_type -> audioserver.v1.SeekResponse
-	25, // 25: audioserver.v1.AudioServerService.SeekBy:output_type -> audioserver.v1.SeekByResponse
-	26, // 26: audioserver.v1.AudioServerService.GetStatus:output_type -> audioserver.v1.GetStatusResponse
-	27, // 27: audioserver.v1.AudioServerService.SubscribeEvents:output_type -> audioserver.v1.StationEvent
-	14, // [14:28] is the sub-list for method output_type
-	0,  // [0:14] is the sub-list for method input_type
+	14, // 14: audioserver.v1.AudioServerService.GetServerInfo:input_type -> audioserver.v1.GetServerInfoRequest
+	15, // 15: audioserver.v1.AudioServerService.RegisterStation:output_type -> audioserver.v1.RegisterStationResponse
+	16, // 16: audioserver.v1.AudioServerService.UnregisterStation:output_type -> audioserver.v1.UnregisterStationResponse
+	17, // 17: audioserver.v1.AudioServerService.ListStations:output_type -> audioserver.v1.ListStationsResponse
+	18, // 18: audioserver.v1.AudioServerService.QueueTrack:output_type -> audioserver.v1.QueueTrackResponse
+	19, // 19: audioserver.v1.AudioServerService.RemoveFromQueue:output_type -> audioserver.v1.RemoveFromQueueResponse
+	20, // 20: audioserver.v1.AudioServerService.ClearQueue:output_type -> audioserver.v1.ClearQueueResponse
+	21, // 21: audioserver.v1.AudioServerService.Skip:output_type -> audioserver.v1.SkipResponse
+	22, // 22: audioserver.v1.AudioServerService.SkipTo:output_type -> audioserver.v1.SkipToResponse
+	23, // 23: audioserver.v1.AudioServerService.Pause:output_type -> audioserver.v1.PauseResponse
+	24, // 24: audioserver.v1.AudioServerService.Resume:output_type -> audioserver.v1.ResumeResponse
+	25, // 25: audioserver.v1.AudioServerService.Seek:output_type -> audioserver.v1.SeekResponse
+	26, // 26: audioserver.v1.AudioServerService.SeekBy:output_type -> audioserver.v1.SeekByResponse
+	27, // 27: audioserver.v1.AudioServerService.GetStatus:output_type -> audioserver.v1.GetStatusResponse
+	28, // 28: audioserver.v1.AudioServerService.SubscribeEvents:output_type -> audioserver.v1.StationEvent
+	29, // 29: audioserver.v1.AudioServerService.GetServerInfo:output_type -> audioserver.v1.GetServerInfoResponse
+	15, // [15:30] is the sub-list for method output_type
+	0,  // [0:15] is the sub-list for method input_type
 	0,  // [0:0] is the sub-list for extension type_name
 	0,  // [0:0] is the sub-list for extension extendee
 	0,  // [0:0] is the sub-list for field type_name
@@ -118,6 +123,7 @@ func file_audioserver_v1_audioserver_proto_init() {
 	file_audioserver_v1_queue_proto_init()
 	file_audioserver_v1_status_proto_init()
 	file_audioserver_v1_events_proto_init()
+	file_audioserver_v1_server_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

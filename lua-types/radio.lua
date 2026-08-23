@@ -86,6 +86,9 @@
 ---@field logo_url string
 ---@field metadata table<string, string>
 
+---@class RadioServerInfo
+---@field version string # "dev" for a locally built binary with no version baked in via -ldflags
+
 ---@class radiolib
 ---@field args string[] # CLI args after --config/--script, e.g. {"myfm", "My FM"}
 radio = {}
@@ -198,6 +201,11 @@ function radio.status() end
 --- to have been called first.
 ---@return RadioStationSummary[]
 function radio.list_stations() end
+
+--- Reports the audio server's build version. Not scoped to any station,
+--- same as radio.list_stations().
+---@return RadioServerInfo
+function radio.server_info() end
 
 --- Calls fn repeatedly, once every `seconds`.
 ---@param seconds number

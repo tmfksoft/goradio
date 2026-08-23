@@ -357,3 +357,14 @@ polling `radio.status()` once per station.
 A token scoped to a single slug only ever sees that one slug here; this
 never raises an error for a slug outside the token's scope, it's just
 omitted from the result.
+
+## `radio.server_info()`
+
+Reports the audio server's build version. Not scoped to any station, same
+as `radio.list_stations()` — doesn't require `radio.register()` to have
+been called first either.
+
+```lua
+local info = radio.server_info()
+print(info.version)  --> "v0.9.0", or "dev" for a locally built binary
+```
