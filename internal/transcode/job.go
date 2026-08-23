@@ -2,6 +2,7 @@ package transcode
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -64,7 +65,11 @@ func (p *Pool) process(item *playback.QueuedItem) {
 	path, err := p.cache.GetOrTranscode(ctx, resolved.Path, resolved.CacheKey)
 	if err != nil {
 		p.log.Warn("failed to transcode track", "error", err, "location", item.Source.GetLocation())
-		item.MarkReady("", 0, err)
+		if errors.Is(err, ErrTranscodeTimeout) {
+			item.MarkFailed(err, "TRANSCODE_TIMEOUT")
+		} else {
+			item.MarkReady("", 0, err)
+		}
 		return
 	}
 

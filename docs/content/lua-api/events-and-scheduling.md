@@ -72,6 +72,14 @@ end)
 Fired when something goes wrong that doesn't have a better place to
 surface — most commonly, a queued item's source failed to resolve or
 transcode (see the note in [`radio.queue`](register-queue-status.md#radioqueuesource-mode)).
+`err.code` is freeform but has a few known values: `PREFETCH_QUEUE_FULL`
+(the server's transcode job queue was saturated), `TRANSCODE_TIMEOUT`
+(ffmpeg didn't finish within `transcode.timeout_seconds` — usually means
+the source is longer than that setting accounts for, or the server is
+under heavy load, not that anything's wrong with the file), and
+`TRANSCODE_FAILED` (anything else ffmpeg rejected the source for, or the
+catch-all default). Treat unrecognized codes the same as
+`TRANSCODE_FAILED` — new ones may be added over time.
 
 ### `radio.on_queue_low(fn)`
 

@@ -78,6 +78,15 @@ The server logs a warning on boot if this is empty or left as `CHANGE_ME`.
 | `worker_count` | `4` | Size of the background prefetch worker pool (bounds how many concurrent `ffmpeg` processes a burst of `QueueTrack` calls can spawn) |
 | `timeout_seconds` | `60` | Per-transcode timeout |
 
+`timeout_seconds` needs to cover the *longest* source file you'll queue,
+not just a typical one — a 60-minute talk-radio recording or DJ set can
+easily take longer than the 60s default to transcode, especially under
+load. A transcode that gets killed for running past this reports a
+distinct `TRANSCODE_TIMEOUT` error (see
+[`radio.on_error`](../lua-api/events-and-scheduling.md#radioon_errorfn))
+rather than the generic `TRANSCODE_FAILED` — if you see that code, raise
+this value rather than assuming the file itself is bad.
+
 Changing any of `bitrate_kbps`/`sample_rate`/`channels` changes the cache
 key namespace implicitly (the cache directory isn't automatically purged),
 and regenerates the silence clip on next boot since it's also keyed by
