@@ -14,9 +14,6 @@ permissions:
   contents: read
   packages: write
 
-env:
-  IMAGE: ghcr.io/${{ github.repository_owner }}/goradio
-
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -31,6 +28,13 @@ jobs:
           else
             echo "value=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
           fi
+
+      # GitHub Actions has no toLower() expression function, and
+      # github.repository_owner preserves the org's actual case
+      # (GoRadioServer) -- ghcr.io rejects uppercase in an image tag, so it
+      # has to be lowered via a shell step, not the env: block above.
+      - name: Set lowercase image name
+        run: echo "IMAGE=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/goradio" >> "$GITHUB_ENV"
 
       - uses: docker/setup-buildx-action@v3
 
