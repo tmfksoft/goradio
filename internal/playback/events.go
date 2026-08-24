@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
+	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
 )
 
 // eventBufferSize is small: events are low-frequency and GetStatus remains

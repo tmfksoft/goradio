@@ -8,7 +8,7 @@ import (
 
 	"google.golang.org/protobuf/encoding/protojson"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
+	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
 )
 
 // StartControlAPI starts the station's own optional local control HTTP API

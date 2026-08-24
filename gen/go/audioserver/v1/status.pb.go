@@ -412,7 +412,7 @@ const file_audioserver_v1_status_proto_rawDesc = "" +
 	"\bmetadata\x18\r \x03(\v2/.audioserver.v1.GetStatusResponse.MetadataEntryR\bmetadata\x1a;\n" +
 	"\rMetadataEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01BFZDgithub.com/goradioserver/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_status_proto_rawDescOnce sync.Once

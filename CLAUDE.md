@@ -8,7 +8,7 @@ GoRadio is an audio server (`radio serve`) plus a Lua station controller
 (`radio station`), talking to each other over a shared protocol
 (`audioserver.v1.AudioServerService`), defined in `proto/audioserver/v1/*.proto`
 and published to a self-hosted Buf Schema Registry at
-`proto.prod.wtf/tmfksoft/goradio`.
+`proto.prod.wtf/goradioserver/goradio`.
 
 The server side is **connect-go**, not grpc-go: one handler serves gRPC,
 gRPC-Web and the Connect protocol (plain HTTP+JSON, HTTP/1.1-capable) on
@@ -95,6 +95,35 @@ Work through all of these every time:
    `internal/playback/player_test.go` for the pattern (drive
    `playLocalItem` directly against small on-disk test clips, assert on
    `Station`'s exported state).
+
+## Documentation site
+
+`docs/` is MkDocs with the
+[GoRadio theme](https://github.com/GoRadioServer/goradio-mkdocs-theme),
+`docs_dir: content`, deployed to GitHub Pages by
+`.github/workflows/docs.yml` on every push to `main` that touches `docs/**`.
+
+The theme is a skin over Material for MkDocs (`extends: material`), so
+every Material feature still works. Two things about it are easy to get
+wrong:
+
+- **Don't add a `theme.palette` block.** The theme ships one locked dark
+  scheme wired to the brand through custom CSS variables rather than a
+  named Material palette; overriding it undoes the point of using it.
+- **`theme.features` replaces the theme's list, it does not merge.**
+  Setting only `content.action.edit` silently drops the navigation tabs.
+  `mkdocs.yml` restates the theme's full list plus that one addition, so
+  re-sync it if the theme's own list changes.
+
+It installs from git (`docs/requirements.txt`), tracking the theme's
+`main`, since it is not published to PyPI. A theme change therefore
+reaches this site on the next docs build.
+
+```sh
+pip install -r docs/requirements.txt
+cd docs && mkdocs serve
+mkdocs build --strict --config-file mkdocs.yml --site-dir ../site   # what CI runs
+```
 
 ## Versioning and release
 

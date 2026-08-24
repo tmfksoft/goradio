@@ -1,7 +1,7 @@
 # Station configuration (`station.yaml`)
 
 Loaded by [`radio station`](../cli/station.md). Start from
-[`configs/station.example.yaml`](https://github.com/tmfksoft/goradio/blob/main/configs/station.example.yaml).
+[`configs/station.example.yaml`](https://github.com/goradioserver/goradio/blob/main/configs/station.example.yaml).
 
 ```yaml
 server:

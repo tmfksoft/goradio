@@ -14,7 +14,7 @@ call order, the reconnect handling) applies either way.
 ## 1. Generate a client from the schema registry
 
 You don't need this repository at all — the schema is published to a Buf
-Schema Registry at `proto.prod.wtf/tmfksoft/goradio`.
+Schema Registry at `proto.prod.wtf/goradioserver/goradio`.
 
 1. Write a `buf.gen.yaml` naming the plugins for your language. For example, Python:
    ```yaml
@@ -30,7 +30,7 @@ Schema Registry at `proto.prod.wtf/tmfksoft/goradio`.
    and anything else `buf` has plugins for.
 2. Generate directly from the registry:
    ```sh
-   buf generate proto.prod.wtf/tmfksoft/goradio
+   buf generate proto.prod.wtf/goradioserver/goradio
    ```
 
 That's it — you now have a generated `AudioServerService` client stub for
@@ -139,7 +139,7 @@ intervention:
     won't respond to Ctrl+C at all, transient error or not.
 
 This is exactly what `internal/luastation` (this repo's bundled Lua engine)
-does — see [`internal/luastation/engine.go`](https://github.com/tmfksoft/goradio/blob/main/internal/luastation/engine.go)
+does — see [`internal/luastation/engine.go`](https://github.com/goradioserver/goradio/blob/main/internal/luastation/engine.go)
 (specifically `registerWithRetry`, `isRetryable`, and `subscribeEventsLoop`'s
 `reregisteredCh` signal) if you want a concrete reference implementation of
 this reconnect loop, including the queue re-priming above, to port to your

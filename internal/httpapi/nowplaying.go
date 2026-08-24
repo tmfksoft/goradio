@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strings"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
-	"github.com/tmfksoft/goradio/internal/auth"
-	"github.com/tmfksoft/goradio/internal/playback"
-	"github.com/tmfksoft/goradio/internal/registry"
+	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
+	"github.com/goradioserver/goradio/internal/auth"
+	"github.com/goradioserver/goradio/internal/playback"
+	"github.com/goradioserver/goradio/internal/registry"
 )
 
 // nowPlayingTrack mirrors QueuedItemStatus for JSON consumers (a web

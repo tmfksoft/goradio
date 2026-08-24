@@ -115,7 +115,7 @@ const file_audioserver_v1_server_proto_rawDesc = "" +
 	"\x1baudioserver/v1/server.proto\x12\x0eaudioserver.v1\"\x16\n" +
 	"\x14GetServerInfoRequest\"1\n" +
 	"\x15GetServerInfoResponse\x12\x18\n" +
-	"\aversion\x18\x01 \x01(\tR\aversionBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\aversion\x18\x01 \x01(\tR\aversionBFZDgithub.com/goradioserver/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_server_proto_rawDescOnce sync.Once

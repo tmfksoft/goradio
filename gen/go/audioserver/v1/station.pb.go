@@ -466,7 +466,7 @@ const file_audioserver_v1_station_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"R\n" +
 	"\x14ListStationsResponse\x12:\n" +
-	"\bstations\x18\x01 \x03(\v2\x1e.audioserver.v1.StationSummaryR\bstationsBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\bstations\x18\x01 \x03(\v2\x1e.audioserver.v1.StationSummaryR\bstationsBFZDgithub.com/goradioserver/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_station_proto_rawDescOnce sync.Once

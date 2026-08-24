@@ -12,8 +12,8 @@ import (
 	"strings"
 	"sync"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
-	"github.com/tmfksoft/goradio/internal/fetch"
+	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
+	"github.com/goradioserver/goradio/internal/fetch"
 )
 
 // Config configures how sources are resolved.

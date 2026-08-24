@@ -4,7 +4,7 @@ package registry
 import (
 	"sync"
 
-	"github.com/tmfksoft/goradio/internal/playback"
+	"github.com/goradioserver/goradio/internal/playback"
 )
 
 // Registry maps station slugs to their live playback state. It is the only

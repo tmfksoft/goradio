@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/tmfksoft/goradio/internal/registry"
+	"github.com/goradioserver/goradio/internal/registry"
 )
 
 // NewMux builds the listener-facing HTTP handler: /stream/{slug},

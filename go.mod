@@ -1,4 +1,4 @@
-module github.com/tmfksoft/goradio
+module github.com/goradioserver/goradio
 
 go 1.27.0
 

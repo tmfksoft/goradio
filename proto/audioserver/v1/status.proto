@@ -4,7 +4,7 @@ package audioserver.v1;
 
 import "audioserver/v1/queue.proto";
 
-option go_package = "github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1";
+option go_package = "github.com/goradioserver/goradio/gen/go/audioserver/v1;audioserverv1";
 
 message GetStatusRequest {
   string slug = 1;

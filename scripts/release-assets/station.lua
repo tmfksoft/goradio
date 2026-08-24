@@ -8,7 +8,7 @@
 -- then this will periodically queue a random pick. Until you do, the
 -- station just plays silence -- that's expected, not an error.
 --
--- Full Lua API docs: https://tmfksoft.github.io/goradio/lua-api/
+-- Full Lua API docs: https://goradioserver.github.io/goradio/lua-api/
 
 local slug = radio.args[1] or "myfm"
 local name = radio.args[2] or "My FM"

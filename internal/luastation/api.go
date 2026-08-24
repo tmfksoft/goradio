@@ -9,7 +9,7 @@ import (
 
 	lua "github.com/yuin/gopher-lua"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
+	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
 )
 
 // setupLuaEnvironment installs the `radio` global table (deliberately

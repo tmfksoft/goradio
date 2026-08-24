@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/tmfksoft/goradio/internal/registry"
+	"github.com/goradioserver/goradio/internal/registry"
 )
 
 func healthzHandler(w http.ResponseWriter, r *http.Request) {

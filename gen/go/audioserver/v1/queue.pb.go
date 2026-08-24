@@ -1281,7 +1281,7 @@ const file_audioserver_v1_queue_proto_rawDesc = "" +
 	"\x0fTrackSourceType\x12!\n" +
 	"\x1dTRACK_SOURCE_TYPE_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cTRACK_SOURCE_TYPE_LOCAL_FILE\x10\x01\x12\x1e\n" +
-	"\x1aTRACK_SOURCE_TYPE_HTTP_URL\x10\x02BAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\x1aTRACK_SOURCE_TYPE_HTTP_URL\x10\x02BFZDgithub.com/goradioserver/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_queue_proto_rawDescOnce sync.Once

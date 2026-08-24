@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/tmfksoft/goradio/internal/config"
+	"github.com/goradioserver/goradio/internal/config"
 )
 
 // Station implements

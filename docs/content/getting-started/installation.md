@@ -13,7 +13,7 @@
 ## Build
 
 ```sh
-git clone https://github.com/tmfksoft/goradio.git
+git clone https://github.com/goradioserver/goradio.git
 cd goradio
 make build
 ```
@@ -26,7 +26,7 @@ three subcommands (`serve`, `station`, `tokengen`).
 If you don't want to build from source, tagged releases publish
 `linux/amd64` and `windows/amd64` archives (binary + example configs + a
 starter `station.lua`) to
-[GitHub Releases](https://github.com/tmfksoft/goradio/releases) — no Go
+[GitHub Releases](https://github.com/goradioserver/goradio/releases) — no Go
 toolchain needed. Skip ahead to [Quickstart](quickstart.md) once you've
 extracted one; it uses the same commands either way.
 

@@ -68,7 +68,7 @@ print(radio.args[2])  --> "My FM"
 - [io / os / require, JSON & YAML](io-os-require-json-yaml.md) — the full Lua stdlib, splitting a script across files, and `require("json")`/`require("yaml")`
 - [Editor Support (VS Code)](editor-support.md) — autocomplete/type-checking for all of the above via LuaLS
 
-Or read [`testdata/station-scripts/example.lua`](https://github.com/tmfksoft/goradio/blob/main/testdata/station-scripts/example.lua)
+Or read [`testdata/station-scripts/example.lua`](https://github.com/goradioserver/goradio/blob/main/testdata/station-scripts/example.lua)
 for a complete, working reference script that exercises all of the above.
 
 ## A note on execution model

@@ -1,7 +1,7 @@
 # Audio server configuration (`server.yaml`)
 
 Loaded by [`radio serve`](../cli/serve.md). Start from
-[`configs/server.example.yaml`](https://github.com/tmfksoft/goradio/blob/main/configs/server.example.yaml).
+[`configs/server.example.yaml`](https://github.com/goradioserver/goradio/blob/main/configs/server.example.yaml).
 
 ```yaml
 grpc:

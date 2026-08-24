@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
-	"github.com/tmfksoft/goradio/internal/audiosource"
-	"github.com/tmfksoft/goradio/internal/playback"
+	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
+	"github.com/goradioserver/goradio/internal/audiosource"
+	"github.com/goradioserver/goradio/internal/playback"
 )
 
 // A burst of QueueTrack calls for the same huge single-file station (all

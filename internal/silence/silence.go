@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/tmfksoft/goradio/internal/transcode"
+	"github.com/goradioserver/goradio/internal/transcode"
 )
 
 // EnsureClip generates (if not already cached) a silent MP3 matching

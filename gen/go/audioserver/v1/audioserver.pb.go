@@ -42,7 +42,7 @@ const file_audioserver_v1_audioserver_proto_rawDesc = "" +
 	"\x06SeekBy\x12\x1d.audioserver.v1.SeekByRequest\x1a\x1e.audioserver.v1.SeekByResponse\x12P\n" +
 	"\tGetStatus\x12 .audioserver.v1.GetStatusRequest\x1a!.audioserver.v1.GetStatusResponse\x12Y\n" +
 	"\x0fSubscribeEvents\x12&.audioserver.v1.SubscribeEventsRequest\x1a\x1c.audioserver.v1.StationEvent0\x01\x12\\\n" +
-	"\rGetServerInfo\x12$.audioserver.v1.GetServerInfoRequest\x1a%.audioserver.v1.GetServerInfoResponseBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\rGetServerInfo\x12$.audioserver.v1.GetServerInfoRequest\x1a%.audioserver.v1.GetServerInfoResponseBFZDgithub.com/goradioserver/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var file_audioserver_v1_audioserver_proto_goTypes = []any{
 	(*RegisterStationRequest)(nil),    // 0: audioserver.v1.RegisterStationRequest

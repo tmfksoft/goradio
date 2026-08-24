@@ -20,7 +20,7 @@ protocol is Lua-specific.
 ## The schema is on a registry, not just in this repo
 
 The `.proto` files are published to a Buf Schema Registry at
-`proto.prod.wtf/tmfksoft/goradio`. You can generate a client for your
+`proto.prod.wtf/goradioserver/goradio`. You can generate a client for your
 language directly from the registry without cloning this repository — see
 [Writing a Controller](writing-a-controller.md) for the exact `buf`
 commands.

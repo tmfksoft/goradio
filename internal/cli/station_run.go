@@ -7,8 +7,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/tmfksoft/goradio/internal/config"
-	"github.com/tmfksoft/goradio/internal/luastation"
+	"github.com/goradioserver/goradio/internal/config"
+	"github.com/goradioserver/goradio/internal/luastation"
 )
 
 func runStation(log *slog.Logger, cfg *config.StationConfig, scriptPath string, scriptArgs []string) error {

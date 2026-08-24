@@ -14,16 +14,16 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/tmfksoft/goradio/gen/go/audioserver/v1/audioserverv1connect"
-	"github.com/tmfksoft/goradio/internal/audiosource"
-	"github.com/tmfksoft/goradio/internal/auth"
-	"github.com/tmfksoft/goradio/internal/config"
-	"github.com/tmfksoft/goradio/internal/grpcapi"
-	"github.com/tmfksoft/goradio/internal/httpapi"
-	"github.com/tmfksoft/goradio/internal/playback"
-	"github.com/tmfksoft/goradio/internal/registry"
-	"github.com/tmfksoft/goradio/internal/silence"
-	"github.com/tmfksoft/goradio/internal/transcode"
+	"github.com/goradioserver/goradio/gen/go/audioserver/v1/audioserverv1connect"
+	"github.com/goradioserver/goradio/internal/audiosource"
+	"github.com/goradioserver/goradio/internal/auth"
+	"github.com/goradioserver/goradio/internal/config"
+	"github.com/goradioserver/goradio/internal/grpcapi"
+	"github.com/goradioserver/goradio/internal/httpapi"
+	"github.com/goradioserver/goradio/internal/playback"
+	"github.com/goradioserver/goradio/internal/registry"
+	"github.com/goradioserver/goradio/internal/silence"
+	"github.com/goradioserver/goradio/internal/transcode"
 )
 
 // stationStarter implements grpcapi.StationStarter: it starts a station's

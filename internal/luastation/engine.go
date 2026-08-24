@@ -27,8 +27,8 @@ import (
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/status"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
-	"github.com/tmfksoft/goradio/internal/config"
+	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
+	"github.com/goradioserver/goradio/internal/config"
 )
 
 // Engine runs one Lua station script against one audio server connection.

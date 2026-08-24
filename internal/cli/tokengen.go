@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tmfksoft/goradio/internal/auth"
+	"github.com/goradioserver/goradio/internal/auth"
 )
 
 // TokenGen implements `radio tokengen [-secret ...] [-subject ...] [-ttl ...] [-readonly] <slug...>`.

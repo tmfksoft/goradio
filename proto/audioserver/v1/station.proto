@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package audioserver.v1;
 
-option go_package = "github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1";
+option go_package = "github.com/goradioserver/goradio/gen/go/audioserver/v1;audioserverv1";
 
 // RegisterStationRequest registers (or re-registers) a station by slug.
 // Re-registering an existing slug updates its metadata in place without

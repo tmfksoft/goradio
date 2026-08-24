@@ -19,14 +19,14 @@ plain HTTP+JSON on the same port, so "speaks that protocol" can mean a
 generated gRPC stub *or* just `curl` — see
 [Writing a controller in another language](#writing-a-controller-in-another-language).
 The schema is published to a Buf Schema Registry at
-`proto.prod.wtf/tmfksoft/goradio` so a controller in any language can pull
+`proto.prod.wtf/goradioserver/goradio` so a controller in any language can pull
 it without vendoring `.proto` files.
 
 ## Documentation
 
 Full docs (usage, Lua scripting API, developer/protocol API) live in
 [`docs/`](docs/), built with MkDocs + Material and published to GitHub
-Pages at <https://tmfksoft.github.io/goradio/>. To build/preview
+Pages at <https://goradioserver.github.io/goradio/>. To build/preview
 locally:
 
 ```sh
@@ -50,7 +50,7 @@ someone with repo admin access can do.
 ## Pre-built binaries
 
 Tagged releases (`vX.Y.Z`) publish `linux/amd64` and `windows/amd64`
-archives to [GitHub Releases](https://github.com/tmfksoft/goradio/releases)
+archives to [GitHub Releases](https://github.com/goradioserver/goradio/releases)
 via `.github/workflows/release.yml` — each contains the `radio` binary,
 `server.example.yaml`, `station.example.yaml`, a starter `station.lua`, and
 a `GETTING_STARTED.txt`. To build the same archives locally (any commit,
@@ -68,10 +68,10 @@ roles — pick `serve` or `station` via the command) via
 `.github/workflows/docker.yml`:
 
 ```sh
-docker run ghcr.io/tmfksoft/goradio:latest serve --config /app/server.yaml
+docker run ghcr.io/goradioserver/goradio:latest serve --config /app/server.yaml
 ```
 
-See [Docker & Kubernetes](https://tmfksoft.github.io/goradio/deployment/docker/)
+See [Docker & Kubernetes](https://goradioserver.github.io/goradio/deployment/docker/)
 for volume mounts, permissions (the image runs as a fixed non-root
 `uid 1000`), and a Kubernetes example.
 
@@ -139,14 +139,14 @@ io.open(...)  -- full Lua stdlib is open too: io, os, require/package,
 ```
 
 See `testdata/station-scripts/example.lua` for a working reference script,
-and the [docs](https://tmfksoft.github.io/goradio/lua-api/) for the full
+and the [docs](https://goradioserver.github.io/goradio/lua-api/) for the full
 API reference.
 
 **VS Code autocomplete/type-checking:** open this repo (or a release
 archive) as your workspace and install the **Lua** extension
 (`sumneko.lua`) — `.luarc.json` and `lua-types/` are already set up to
 give you real intellisense for `radio`/`http`/`sql`/`redis`. See
-[Editor Support](https://tmfksoft.github.io/goradio/lua-api/editor-support/).
+[Editor Support](https://goradioserver.github.io/goradio/lua-api/editor-support/).
 
 ## Writing a controller in another language
 
@@ -167,7 +167,7 @@ plugins.
    (swap in whatever local or remote plugins your language/toolchain uses).
 2. Generate straight from the registry — no local checkout of this repo needed:
    ```sh
-   buf generate proto.prod.wtf/tmfksoft/goradio
+   buf generate proto.prod.wtf/goradioserver/goradio
    ```
 3. Implement a client against the generated `AudioServerService` stub:
    - Dial the audio server's gRPC address — plaintext, unless it's fronted by a TLS-terminating reverse proxy (see Known gaps below).
@@ -188,7 +188,7 @@ That's the route to take for a platform where a gRPC dependency is painful
 or unavailable — an old runtime, an embedded scripting engine, a 32-bit
 process. Full details, including the protobuf-JSON gotchas worth knowing
 before you hand-roll a client, are in
-[HTTP + JSON API](https://github.com/tmfksoft/goradio/blob/main/docs/content/developer-api/http-json-api.md).
+[HTTP + JSON API](https://github.com/goradioserver/goradio/blob/main/docs/content/developer-api/http-json-api.md).
 
 `internal/luastation` in this repo is just a first-party implementation of
 that same client contract in Go+Lua — nothing about the protocol is
@@ -213,7 +213,7 @@ make proto-push    # requires: buf registry login proto.prod.wtf
   (title/artist/duration/elapsed/listeners) for pairing a plain HTML/JS
   player with a progress bar or a Discord bot — no gRPC client needed. A
   bearer token additionally unlocks raw file paths/URLs, which aren't
-  public by default. See the [docs](https://tmfksoft.github.io/goradio/developer-api/now-playing-http-api/).
+  public by default. See the [docs](https://goradioserver.github.io/goradio/developer-api/now-playing-http-api/).
 - `radio tokengen -readonly` mints a token that can `GetStatus`/
   `SubscribeEvents` but gets `PermissionDenied` on every write RPC — for
   observers (dashboards, bots) you don't want able to touch playback. Not
@@ -222,6 +222,6 @@ make proto-push    # requires: buf registry login proto.prod.wtf
   TLS listener built into `radio serve` itself (it always speaks plaintext
   gRPC — `radio station`'s `grpc_addr` can point at an `https://`/`grpcs://`
   TLS-terminating reverse proxy in front of it instead, see
-  [Station configuration](https://tmfksoft.github.io/goradio/configuration/station-config/#server)),
+  [Station configuration](https://goradioserver.github.io/goradio/configuration/station-config/#server)),
   no bundled genre-specific content logic (songs/idents/DJ chatter/callers/
   adverts) yet — build that in Lua on top of the primitives above.

@@ -7,7 +7,7 @@ package playback
 import (
 	"sync"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
+	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
 )
 
 // QueuedItem is one entry in a station's playback queue. It is created

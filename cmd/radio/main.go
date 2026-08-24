@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/tmfksoft/goradio/internal/cli"
+	"github.com/goradioserver/goradio/internal/cli"
 )
 
 func main() {

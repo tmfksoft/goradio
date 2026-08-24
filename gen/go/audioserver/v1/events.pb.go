@@ -659,7 +659,7 @@ const file_audioserver_v1_events_proto_rawDesc = "" +
 	"\x10EVENT_TYPE_ERROR\x10\x05\x12\x1e\n" +
 	"\x1aEVENT_TYPE_SILENCE_STARTED\x10\x06\x12\x1c\n" +
 	"\x18EVENT_TYPE_SILENCE_ENDED\x10\a\x12\x18\n" +
-	"\x14EVENT_TYPE_QUEUE_LOW\x10\bBAZ?github.com/tmfksoft/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
+	"\x14EVENT_TYPE_QUEUE_LOW\x10\bBFZDgithub.com/goradioserver/goradio/gen/go/audioserver/v1;audioserverv1b\x06proto3"
 
 var (
 	file_audioserver_v1_events_proto_rawDescOnce sync.Once

@@ -1,1 +1,8 @@
+# The GoRadio theme is a skin on top of Material for MkDocs and pulls
+# mkdocs and mkdocs-material in as its own dependencies. It is not on
+# PyPI yet, so it installs from git.
+goradio-mkdocs-theme @ git+https://github.com/GoRadioServer/goradio-mkdocs-theme.git@main
+
+# The theme asks for Material >= 9.5; pinning the major as well keeps a
+# future Material 10 from changing the site out from under us unannounced.
 mkdocs-material>=9.5,<10

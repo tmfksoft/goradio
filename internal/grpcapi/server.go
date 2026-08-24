@@ -17,12 +17,12 @@ import (
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
-	"github.com/tmfksoft/goradio/gen/go/audioserver/v1/audioserverv1connect"
-	"github.com/tmfksoft/goradio/internal/auth"
-	"github.com/tmfksoft/goradio/internal/playback"
-	"github.com/tmfksoft/goradio/internal/registry"
-	"github.com/tmfksoft/goradio/internal/version"
+	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
+	"github.com/goradioserver/goradio/gen/go/audioserver/v1/audioserverv1connect"
+	"github.com/goradioserver/goradio/internal/auth"
+	"github.com/goradioserver/goradio/internal/playback"
+	"github.com/goradioserver/goradio/internal/registry"
+	"github.com/goradioserver/goradio/internal/version"
 )
 
 // Prefetcher dispatches a queued item's download/transcode job. Handed in

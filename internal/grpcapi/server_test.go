@@ -12,9 +12,9 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/tmfksoft/goradio/gen/go/audioserver/v1/audioserverv1connect"
-	"github.com/tmfksoft/goradio/internal/auth"
-	"github.com/tmfksoft/goradio/internal/registry"
+	"github.com/goradioserver/goradio/gen/go/audioserver/v1/audioserverv1connect"
+	"github.com/goradioserver/goradio/internal/auth"
+	"github.com/goradioserver/goradio/internal/registry"
 )
 
 const testSecret = "test-secret"

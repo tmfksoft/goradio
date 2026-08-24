@@ -30,6 +30,6 @@ USER radio
 
 # No CMD: running the image with no arguments prints usage. Provide the
 # role and its flags via the container's command, e.g.:
-#   docker run ghcr.io/tmfksoft/goradio serve --config /config/server.yaml
-#   docker run ghcr.io/tmfksoft/goradio station --config /config/station.yaml --script /config/station.lua
+#   docker run ghcr.io/goradioserver/goradio serve --config /config/server.yaml
+#   docker run ghcr.io/goradioserver/goradio station --config /config/station.yaml --script /config/station.lua
 ENTRYPOINT ["radio"]

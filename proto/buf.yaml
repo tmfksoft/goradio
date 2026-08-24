@@ -1,7 +1,7 @@
 version: v2
 modules:
   - path: .
-    name: proto.prod.wtf/tmfksoft/goradio
+    name: proto.prod.wtf/goradioserver/goradio
 lint:
   use:
     - STANDARD

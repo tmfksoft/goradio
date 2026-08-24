@@ -6,8 +6,8 @@ command/args. It's built from `Dockerfile` and published by
 `.github/workflows/docker.yml` to:
 
 ```
-ghcr.io/tmfksoft/goradio:vX.Y.Z
-ghcr.io/tmfksoft/goradio:latest
+ghcr.io/goradioserver/goradio:vX.Y.Z
+ghcr.io/goradioserver/goradio:latest
 ```
 
 Bundles `ffmpeg` (Alpine's build, confirmed built with `--enable-libmp3lame`)
@@ -26,7 +26,7 @@ docker run -d --name goradio-serve \
   -v "$PWD/server.yaml:/app/server.yaml:ro" \
   -v "$PWD/audio:/audio:ro" \
   -v "$PWD/data:/data" \
-  ghcr.io/tmfksoft/goradio:latest \
+  ghcr.io/goradioserver/goradio:latest \
   serve --config /app/server.yaml
 ```
 
@@ -43,7 +43,7 @@ cp testdata/station-scripts/example.lua ./station.lua
 docker run -d --name goradio-station \
   -v "$PWD/station.yaml:/app/station.yaml:ro" \
   -v "$PWD/station.lua:/app/station.lua:ro" \
-  ghcr.io/tmfksoft/goradio:latest \
+  ghcr.io/goradioserver/goradio:latest \
   station --config /app/station.yaml --script /app/station.lua
 ```
 
@@ -120,7 +120,7 @@ spec:
         fsGroup: 1000   # so the mounted PVC is writable by uid 1000
       containers:
         - name: goradio
-          image: ghcr.io/tmfksoft/goradio:latest
+          image: ghcr.io/goradioserver/goradio:latest
           args: ["serve", "--config", "/app/server.yaml"]
           env:
             - name: GORADIO_JWT_SECRET

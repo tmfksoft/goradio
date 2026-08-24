@@ -1,7 +1,7 @@
 # Protocol Reference
 
 Service: `audioserver.v1.AudioServerService`, in package `audioserver.v1`.
-Full source: [`proto/audioserver/v1`](https://github.com/tmfksoft/goradio/tree/main/proto/audioserver/v1).
+Full source: [`proto/audioserver/v1`](https://github.com/goradioserver/goradio/tree/main/proto/audioserver/v1).
 
 ```proto
 service AudioServerService {

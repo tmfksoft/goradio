@@ -19,7 +19,7 @@ proto:
 	buf lint proto
 	buf generate proto
 
-# Publish the proto/ module to its configured BSR (proto.prod.wtf/tmfksoft/goradio).
+# Publish the proto/ module to its configured BSR (proto.prod.wtf/goradioserver/goradio).
 # Requires `buf registry login proto.prod.wtf` first.
 proto-push:
 	buf push proto

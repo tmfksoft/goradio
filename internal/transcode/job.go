@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"os"
 
-	"github.com/tmfksoft/goradio/internal/audiosource"
-	"github.com/tmfksoft/goradio/internal/playback"
+	"github.com/goradioserver/goradio/internal/audiosource"
+	"github.com/goradioserver/goradio/internal/playback"
 )
 
 // Pool is a bounded worker pool that resolves and transcodes queued items
