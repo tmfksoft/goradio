@@ -5,10 +5,16 @@ Guidance for Claude Code (or any future contributor) working in this repo.
 ## Project shape
 
 GoRadio is an audio server (`radio serve`) plus a Lua station controller
-(`radio station`), talking to each other over a shared gRPC protocol
+(`radio station`), talking to each other over a shared protocol
 (`audioserver.v1.AudioServerService`), defined in `proto/audioserver/v1/*.proto`
 and published to a self-hosted Buf Schema Registry at
 `proto.prod.wtf/tmfksoft/goradio`.
+
+The server side is **connect-go**, not grpc-go: one handler serves gRPC,
+gRPC-Web and the Connect protocol (plain HTTP+JSON, HTTP/1.1-capable) on
+the same port. The station controller still *dials* with grpc-go, so both
+sets of stubs are generated and both stay in use — don't delete either
+from `buf.gen.yaml`.
 
 ## After adding or changing a gRPC RPC or message field
 
@@ -20,14 +26,20 @@ API already supports, or a BSR consumer building against a stale schema.
 Work through all of these every time:
 
 1. **Regenerate stubs**: `make proto` (needs `buf`, `protoc-gen-go`,
-   `protoc-gen-go-grpc` on `PATH` — check `$(go env GOPATH)/bin` if they
-   were installed via `go install`).
-2. **Wire the Go server** (`internal/grpcapi/server.go`): new handlers go
-   through `auth.RequireSlug`/`auth.RequireWrite` like every existing one.
-   A **write** RPC needs both; read-only RPCs (`GetStatus`,
-   `ListStations`, `SubscribeEvents`) only need `RequireSlug` (or nothing,
-   for `ListStations`, which filters unauthorized stations out rather
-   than rejecting the call).
+   `protoc-gen-go-grpc`, `protoc-gen-connect-go` on `PATH` — check
+   `$(go env GOPATH)/bin` if they were installed via `go install`).
+2. **Wire the Go server** (`internal/grpcapi/server.go`): handlers are
+   connect-go shaped — `*connect.Request[T]` in (payload at `req.Msg`),
+   `connect.NewResponse(...)` out, and errors as
+   `connect.NewError(connect.CodeX, err)` rather than grpc `status`. New
+   handlers go through `auth.RequireSlug`/`auth.RequireWrite` like every
+   existing one. A **write** RPC needs both; read-only RPCs (`GetStatus`,
+   `ListStations`, `SubscribeEvents`, `GetServerInfo`) only need
+   `RequireSlug` (or nothing, for `ListStations`, which filters
+   unauthorized stations out rather than rejecting the call). The
+   `var _ audioserverv1connect.AudioServerServiceHandler = (*Server)(nil)`
+   assertion at the top of the file catches a signature that drifts from
+   a regenerated stub.
 3. **Update the write-RPC lists in doc comments**: `internal/auth/jwt.go`
    and `internal/auth/interceptor.go` both hardcode the list of write
    RPCs in a comment. Keep them in sync or the comments describe stale
@@ -56,6 +68,11 @@ Work through all of these every time:
      fits the function) — the detailed per-function docs with examples.
    - `docs/content/cli/tokengen.md` — its write-RPC list, if the new RPC
      is a write RPC.
+   - `docs/content/developer-api/http-json-api.md` — only if the new RPC
+     needs something said about its JSON shape beyond the general rules
+     already there (a new `int64` field, say, or a streaming RPC). The
+     per-RPC detail lives in the protocol reference; this page documents
+     the transport.
    - `README.md` — the Lua API cheat sheet block. It has drifted behind
      reality before; check it every time rather than assuming it's current.
 6. **Publish the schema**: `make proto-push` (`buf push proto`) — requires
@@ -66,7 +83,12 @@ Work through all of these every time:
    complete, working implementation rather than a schema nothing
    implements yet.
 7. **Test**: `go build ./... && go vet ./... && go test ./... -race`,
-   and `gofmt -l .` should report nothing outside `gen/`. A change to the
+   and `gofmt -l .` should report nothing outside `gen/`. Also smoke-test
+   *both* transports against a running `radio serve` — the Lua controller
+   exercises the gRPC path, and a `curl -X POST` against
+   `/audioserver.v1.AudioServerService/<Rpc>` with a JSON body exercises
+   the Connect path. They share handlers but not framing, so a change can
+   break one and not the other. A change to the
    playback state machine (pause/seek/skip-style interactions) is worth a
    real test in `internal/playback` — those interaction bugs are easy to
    introduce and easy to miss by inspection alone; see

@@ -43,7 +43,7 @@ same defaults.
 
 | Field | Default | Description |
 |---|---|---|
-| `listen_addr` | `0.0.0.0:9090` | Address the gRPC control plane listens on |
+| `listen_addr` | `0.0.0.0:9090` | Address the control plane listens on. Serves gRPC, gRPC-Web and plain HTTP+JSON (the [Connect protocol](../developer-api/http-json-api.md)) on this one port, chosen per request from the headers |
 
 ## `http`
 
@@ -56,7 +56,7 @@ same defaults.
 
 | Field | Default | Description |
 |---|---|---|
-| `jwt_secret` | `""` | HS256 shared secret used to verify every gRPC call's bearer token. Can also be supplied via the `GORADIO_JWT_SECRET` environment variable, which **takes precedence** over this field — prefer that for anything beyond local dev, so the secret doesn't sit in a config file |
+| `jwt_secret` | `""` | HS256 shared secret used to verify every control-plane call's bearer token. Can also be supplied via the `GORADIO_JWT_SECRET` environment variable, which **takes precedence** over this field — prefer that for anything beyond local dev, so the secret doesn't sit in a config file |
 
 The server logs a warning on boot if this is empty or left as `CHANGE_ME`.
 

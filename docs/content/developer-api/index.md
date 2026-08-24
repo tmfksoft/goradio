@@ -1,9 +1,10 @@
 # Developer / Protocol API — Overview
 
-The audio server exposes one gRPC service, `AudioServerService`, defined in
-`proto/audioserver/v1`. A station controller doesn't have to be the Lua
-engine bundled in this repo — anything that can make gRPC calls and hold a
-JWT can be a controller. `internal/luastation` (this repo's Lua engine) is
+The audio server exposes one service, `AudioServerService`, defined in
+`proto/audioserver/v1`. It's reachable over gRPC, gRPC-Web, or plain
+HTTP+JSON — same port, same handlers, same auth — so a station controller
+doesn't have to be the Lua engine bundled in this repo. Anything that can
+make an HTTP request and hold a JWT can be a controller. `internal/luastation` (this repo's Lua engine) is
 just a first-party implementation of that same contract; nothing about the
 protocol is Lua-specific.
 
@@ -30,6 +31,9 @@ commands.
   message field, the auth model.
 - **[Writing a Controller](writing-a-controller.md)** — the lifecycle: what
   order to call things in, how to handle reconnects, worked example.
+- **[HTTP + JSON API](http-json-api.md)** — every RPC over plain HTTP/1.1
+  with a JSON body, for clients that can't or shouldn't depend on a gRPC
+  library.
 - **[Now Playing HTTP API](now-playing-http-api.md)** — a plain public JSON
   endpoint mirroring `GetStatus`, for a web embed or a bot that doesn't
   want to speak gRPC at all.

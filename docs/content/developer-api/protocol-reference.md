@@ -27,10 +27,30 @@ Fifteen RPCs: fourteen unary commands, one server-streaming feed of
 events. There is no bidirectional streaming — commands are always plain
 request/response.
 
+## Transports
+
+The server speaks three protocols on the same port (`grpc.listen_addr`),
+chosen per request from the headers — there's nothing to configure, and
+all three reach the same handlers with the same auth:
+
+- **gRPC** — what you get from a generated client in any language, and
+  what the bundled Lua controller uses. Requires HTTP/2.
+- **gRPC-Web** — for browser clients.
+- **Connect** — plain HTTP `POST` with a JSON body, over HTTP/1.1 or
+  HTTP/2. No gRPC library, no protobuf library, no codegen.
+
+That last one is documented in full on
+[HTTP + JSON API](http-json-api.md). Reach for it when gRPC is awkward or
+impossible to depend on — legacy runtimes, embedded scripting engines,
+32-bit processes — or when you just want to `curl` the server. The rest of
+this page describes the RPCs themselves, which are identical whichever
+transport you use.
+
 ## Authentication
 
-Every RPC (including `SubscribeEvents`) requires an `authorization: Bearer
-<jwt>` entry in the gRPC request metadata. The token is an HS256 JWT whose
+Every RPC (including `SubscribeEvents`) requires an `Authorization: Bearer
+<jwt>` header (gRPC request metadata is carried as HTTP headers, so this
+is the same thing on every transport). The token is an HS256 JWT whose
 claims include:
 
 ```json
@@ -72,7 +92,8 @@ Mint tokens with [`radio tokengen`](../cli/tokengen.md) (`-readonly` for a
 read-only one), or sign your own HS256 JWT with this claim shape from any
 language.
 
-There is no TLS on the gRPC transport this phase — see
+The server itself listens in plaintext — put a TLS-terminating reverse
+proxy in front if you need encryption in transit. See
 [Known gaps](../index.md#known-gaps).
 
 ## RegisterStation

@@ -12,10 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
+	"connectrpc.com/connect"
 
-	audioserverv1 "github.com/tmfksoft/goradio/gen/go/audioserver/v1"
+	"github.com/tmfksoft/goradio/gen/go/audioserver/v1/audioserverv1connect"
 	"github.com/tmfksoft/goradio/internal/audiosource"
 	"github.com/tmfksoft/goradio/internal/auth"
 	"github.com/tmfksoft/goradio/internal/config"
@@ -83,31 +82,37 @@ func runServe(log *slog.Logger, cfg *config.AudioServerConfig) error {
 		},
 	}
 
-	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(auth.UnaryServerInterceptor([]byte(cfg.Auth.JWTSecret))),
-		grpc.StreamInterceptor(auth.StreamServerInterceptor([]byte(cfg.Auth.JWTSecret))),
-		// Matches the station/panel clients' own keepalive.ClientParameters:
-		// PermitWithoutStream must be true here too, or the server tears
-		// down a client's ping-only connection (no active RPC) as
-		// "too_many_pings" -- the opposite of what the client's keepalive
-		// is trying to achieve. MinTime <= the clients' Time (20s) so a
-		// well-behaved client's pings are never rejected as too frequent.
-		grpc.KeepaliveEnforcementPolicy(keepalive.EnforcementPolicy{
-			MinTime:             15 * time.Second,
-			PermitWithoutStream: true,
-		}),
-		// The server's own probes, so it notices a silently-dead client
-		// connection (one it's not actively streaming to) instead of
-		// holding the goroutine/resources open indefinitely.
-		grpc.KeepaliveParams(keepalive.ServerParameters{
-			Time:    30 * time.Second,
-			Timeout: 10 * time.Second,
-		}),
-	)
 	api := grpcapi.NewServer(log, reg, pool, starter, cfg.HTTP.PublicBaseURL)
-	audioserverv1.RegisterAudioServerServiceServer(grpcServer, api)
+	apiPath, apiHandler := audioserverv1connect.NewAudioServerServiceHandler(
+		api,
+		connect.WithInterceptors(auth.NewInterceptor([]byte(cfg.Auth.JWTSecret))),
+	)
+	apiMux := http.NewServeMux()
+	apiMux.Handle(apiPath, apiHandler)
 
-	grpcLis, err := net.Listen("tcp", cfg.GRPC.ListenAddr)
+	apiServer := &http.Server{
+		Handler: apiMux,
+		// A connect-go handler serves gRPC, gRPC-Web and the Connect
+		// protocol off this one mux. gRPC requires HTTP/2, and this
+		// listener is plaintext (TLS, when used, is terminated by a
+		// reverse proxy in front), so UnencryptedHTTP2 -- h2c -- has to be
+		// enabled explicitly or a grpc-go client can't negotiate at all.
+		// HTTP1 stays on for Connect-protocol clients that only speak
+		// HTTP/1.1, which is the whole point of exposing Connect: a caller
+		// needs nothing but an HTTP client and a JSON parser.
+		Protocols: httpProtocols(),
+		HTTP2: &http.HTTP2Config{
+			// The net/http equivalents of the grpc.KeepaliveParams this
+			// replaced: probe a connection that's gone quiet, and drop it
+			// if the probe goes unanswered, so a silently-dead client
+			// (NAT/LB idle timeout, network partition) doesn't hold its
+			// goroutine and event subscription open forever.
+			SendPingTimeout: 30 * time.Second,
+			PingTimeout:     10 * time.Second,
+		},
+	}
+
+	apiLis, err := net.Listen("tcp", cfg.GRPC.ListenAddr)
 	if err != nil {
 		return fmt.Errorf("listen grpc: %w", err)
 	}
@@ -117,8 +122,10 @@ func runServe(log *slog.Logger, cfg *config.AudioServerConfig) error {
 
 	errCh := make(chan error, 2)
 	go func() {
-		log.Info("grpc listening", "addr", cfg.GRPC.ListenAddr)
-		errCh <- grpcServer.Serve(grpcLis)
+		log.Info("rpc listening (grpc, grpc-web, connect)", "addr", cfg.GRPC.ListenAddr)
+		if err := apiServer.Serve(apiLis); err != nil && err != http.ErrServerClosed {
+			errCh <- err
+		}
 	}()
 	go func() {
 		log.Info("http listening", "addr", cfg.HTTP.ListenAddr)
@@ -137,10 +144,20 @@ func runServe(log *slog.Logger, cfg *config.AudioServerConfig) error {
 		log.Info("shutting down", "signal", sig.String())
 	}
 
-	grpcServer.GracefulStop()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
+	_ = apiServer.Shutdown(shutdownCtx)
 	_ = httpServer.Shutdown(shutdownCtx)
 
 	return nil
+}
+
+// httpProtocols is the protocol set for the RPC listener: HTTP/1.1 for
+// Connect-protocol clients, plus h2c so grpc-go clients can negotiate
+// HTTP/2 over a plaintext connection.
+func httpProtocols() *http.Protocols {
+	var p http.Protocols
+	p.SetHTTP1(true)
+	p.SetUnencryptedHTTP2(true)
+	return &p
 }

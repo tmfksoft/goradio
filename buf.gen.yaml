@@ -6,3 +6,10 @@ plugins:
   - local: protoc-gen-go-grpc
     out: gen/go
     opt: paths=source_relative
+  # Connect handlers/clients, generated alongside the grpc-go stubs rather
+  # than replacing them: a connect-go handler serves the gRPC protocol too,
+  # but the station controller still dials with grpc-go (see
+  # internal/luastation/engine.go), so both sets stay in use.
+  - local: protoc-gen-connect-go
+    out: gen/go
+    opt: paths=source_relative

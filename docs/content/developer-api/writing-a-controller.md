@@ -1,8 +1,15 @@
 # Writing a Controller
 
 This walks through building a station controller from scratch, in any
-language, against the gRPC protocol described in the
+language, against the protocol described in the
 [Protocol Reference](protocol-reference.md).
+
+It assumes you're using a generated gRPC client, since that's the most
+convenient route where a gRPC library is available. If it isn't — an old
+runtime, an embedded scripting engine, a 32-bit process — skip step 1 and
+call the same RPCs over plain HTTP+JSON instead, per
+[HTTP + JSON API](http-json-api.md). Everything from step 2 onwards (the
+call order, the reconnect handling) applies either way.
 
 ## 1. Generate a client from the schema registry
 

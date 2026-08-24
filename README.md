@@ -12,12 +12,15 @@ sharing one `radio` binary:
   API, with full HTTP, MySQL, and Redis access available to the script
   (`require("http")`, `require("sql")`, `require("redis")`).
 
-The two talk over a JWT-authenticated gRPC control plane
+The two talk over a JWT-authenticated control plane
 (`proto/audioserver/v1`), so a controller doesn't have to be Lua — anything
-that can speak that protocol works. The schema is published to a Buf Schema
-Registry at `proto.prod.wtf/tmfksoft/goradio` so a controller in any
-language can pull it without vendoring `.proto` files — see
+that can speak that protocol works. The server accepts gRPC, gRPC-Web, and
+plain HTTP+JSON on the same port, so "speaks that protocol" can mean a
+generated gRPC stub *or* just `curl` — see
 [Writing a controller in another language](#writing-a-controller-in-another-language).
+The schema is published to a Buf Schema Registry at
+`proto.prod.wtf/tmfksoft/goradio` so a controller in any language can pull
+it without vendoring `.proto` files.
 
 ## Documentation
 
@@ -40,9 +43,9 @@ someone with repo admin access can do.
 
 - Go (see `go.mod`)
 - `ffmpeg` on PATH (or configured via `transcode.ffmpeg_path`)
-- `buf` + `protoc-gen-go` + `protoc-gen-go-grpc` only if you're changing the
-  `.proto` files — generated code is committed under `gen/go/`, so a normal
-  build doesn't need them.
+- `buf` + `protoc-gen-go` + `protoc-gen-go-grpc` + `protoc-gen-connect-go`
+  only if you're changing the `.proto` files — generated code is committed
+  under `gen/go/`, so a normal build doesn't need them.
 
 ## Pre-built binaries
 
@@ -170,6 +173,22 @@ plugins.
    - Dial the audio server's gRPC address — plaintext, unless it's fronted by a TLS-terminating reverse proxy (see Known gaps below).
    - Attach `authorization: Bearer <jwt>` as gRPC metadata on every call (mint a token with `radio tokengen`).
    - Call `RegisterStation` once, then `QueueTrack` to queue playback, `GetStatus` for an on-demand snapshot, and open the `SubscribeEvents` server-streaming call to receive `TRACK_STARTED`/`TRACK_ENDED`/`QUEUE_UPDATED`/`ERROR`/etc. events in real time.
+
+**Or skip codegen entirely.** The same RPCs are reachable as plain HTTP
+`POST` with a JSON body, over HTTP/1.1, needing no gRPC or protobuf
+library at all:
+
+```sh
+curl -X POST http://localhost:9090/audioserver.v1.AudioServerService/GetStatus \
+  -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" \
+  -d '{"slug":"myfm"}'
+```
+
+That's the route to take for a platform where a gRPC dependency is painful
+or unavailable — an old runtime, an embedded scripting engine, a 32-bit
+process. Full details, including the protobuf-JSON gotchas worth knowing
+before you hand-roll a client, are in
+[HTTP + JSON API](https://github.com/tmfksoft/goradio/blob/main/docs/content/developer-api/http-json-api.md).
 
 `internal/luastation` in this repo is just a first-party implementation of
 that same client contract in Go+Lua — nothing about the protocol is

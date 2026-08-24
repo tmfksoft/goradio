@@ -11,9 +11,10 @@ release:
 	./scripts/package-release.sh $(VERSION)
 
 # Regenerate gen/go/audioserver/v1 from the proto/ module. Requires buf and
-# the protoc-gen-go / protoc-gen-go-grpc plugins on PATH. buf.yaml lives at
-# proto/buf.yaml (the module root); buf.gen.yaml (repo root) supplies the
-# codegen plugins/output and is resolved relative to the cwd, not the input.
+# the protoc-gen-go / protoc-gen-go-grpc / protoc-gen-connect-go plugins on
+# PATH. buf.yaml lives at proto/buf.yaml (the module root); buf.gen.yaml
+# (repo root) supplies the codegen plugins/output and is resolved relative
+# to the cwd, not the input.
 proto:
 	buf lint proto
 	buf generate proto

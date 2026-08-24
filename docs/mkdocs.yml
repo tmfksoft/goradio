@@ -86,4 +86,5 @@ nav:
       - Overview: developer-api/index.md
       - Protocol Reference: developer-api/protocol-reference.md
       - Writing a Controller: developer-api/writing-a-controller.md
+      - HTTP + JSON API: developer-api/http-json-api.md
       - Now Playing HTTP API: developer-api/now-playing-http-api.md
