@@ -34,6 +34,7 @@ const (
 	AudioServerService_GetStatus_FullMethodName         = "/audioserver.v1.AudioServerService/GetStatus"
 	AudioServerService_SubscribeEvents_FullMethodName   = "/audioserver.v1.AudioServerService/SubscribeEvents"
 	AudioServerService_GetServerInfo_FullMethodName     = "/audioserver.v1.AudioServerService/GetServerInfo"
+	AudioServerService_ListDirectory_FullMethodName     = "/audioserver.v1.AudioServerService/ListDirectory"
 )
 
 // AudioServerServiceClient is the client API for AudioServerService service.
@@ -55,6 +56,7 @@ type AudioServerServiceClient interface {
 	GetStatus(ctx context.Context, in *GetStatusRequest, opts ...grpc.CallOption) (*GetStatusResponse, error)
 	SubscribeEvents(ctx context.Context, in *SubscribeEventsRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[StationEvent], error)
 	GetServerInfo(ctx context.Context, in *GetServerInfoRequest, opts ...grpc.CallOption) (*GetServerInfoResponse, error)
+	ListDirectory(ctx context.Context, in *ListDirectoryRequest, opts ...grpc.CallOption) (*ListDirectoryResponse, error)
 }
 
 type audioServerServiceClient struct {
@@ -224,6 +226,16 @@ func (c *audioServerServiceClient) GetServerInfo(ctx context.Context, in *GetSer
 	return out, nil
 }
 
+func (c *audioServerServiceClient) ListDirectory(ctx context.Context, in *ListDirectoryRequest, opts ...grpc.CallOption) (*ListDirectoryResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListDirectoryResponse)
+	err := c.cc.Invoke(ctx, AudioServerService_ListDirectory_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AudioServerServiceServer is the server API for AudioServerService service.
 // All implementations must embed UnimplementedAudioServerServiceServer
 // for forward compatibility.
@@ -243,6 +255,7 @@ type AudioServerServiceServer interface {
 	GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error)
 	SubscribeEvents(*SubscribeEventsRequest, grpc.ServerStreamingServer[StationEvent]) error
 	GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error)
+	ListDirectory(context.Context, *ListDirectoryRequest) (*ListDirectoryResponse, error)
 	mustEmbedUnimplementedAudioServerServiceServer()
 }
 
@@ -297,6 +310,9 @@ func (UnimplementedAudioServerServiceServer) SubscribeEvents(*SubscribeEventsReq
 }
 func (UnimplementedAudioServerServiceServer) GetServerInfo(context.Context, *GetServerInfoRequest) (*GetServerInfoResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetServerInfo not implemented")
+}
+func (UnimplementedAudioServerServiceServer) ListDirectory(context.Context, *ListDirectoryRequest) (*ListDirectoryResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListDirectory not implemented")
 }
 func (UnimplementedAudioServerServiceServer) mustEmbedUnimplementedAudioServerServiceServer() {}
 func (UnimplementedAudioServerServiceServer) testEmbeddedByValue()                            {}
@@ -582,6 +598,24 @@ func _AudioServerService_GetServerInfo_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _AudioServerService_ListDirectory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDirectoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AudioServerServiceServer).ListDirectory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AudioServerService_ListDirectory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AudioServerServiceServer).ListDirectory(ctx, req.(*ListDirectoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AudioServerService_ServiceDesc is the grpc.ServiceDesc for AudioServerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -644,6 +678,10 @@ var AudioServerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetServerInfo",
 			Handler:    _AudioServerService_GetServerInfo_Handler,
+		},
+		{
+			MethodName: "ListDirectory",
+			Handler:    _AudioServerService_ListDirectory_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

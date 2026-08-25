@@ -118,6 +118,7 @@ radio.seek(position_seconds) / radio.seek_by(delta_seconds) -- jump the current 
 local status = radio.status()  -- includes status.queue, status.history, status.current_track, .duration_seconds/.elapsed_seconds
 radio.list_stations()          -- every station this token authorizes, with name/listener_count/logo_url
 radio.server_info()            -- {version} -- audio server build version, "dev" if not baked in via -ldflags
+radio.list_directory([path])   -- lists a dir under audio_root, filtered by this token's dirs claim
 radio.every(seconds, fn)
 radio.after(seconds, fn)
 radio.on_track_started(fn)

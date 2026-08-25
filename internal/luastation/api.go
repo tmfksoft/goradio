@@ -49,6 +49,7 @@ func (e *Engine) setupLuaEnvironment() {
 		"seek_by":          e.luaSeekBy,
 		"status":           e.luaStatus,
 		"list_stations":    e.luaListStations,
+		"list_directory":   e.luaListDirectory,
 		"server_info":      e.luaServerInfo,
 		"every":            e.luaEvery,
 		"after":            e.luaAfter,
@@ -510,6 +511,40 @@ func (e *Engine) luaListStations(L *lua.LState) int {
 		row.RawSetString("listener_count", lua.LNumber(st.GetListenerCount()))
 		row.RawSetString("logo_url", lua.LString(st.GetLogoUrl()))
 		row.RawSetString("metadata", stringMapToLuaTable(L, st.GetMetadata()))
+		tbl.Append(row)
+	}
+	L.Push(tbl)
+	return 1
+}
+
+// radio.list_directory(path) -> {{name=, is_dir=, path=, size_bytes=}, ...}
+//
+// Lists one directory under audio_root -- path defaults to "" (the root)
+// if omitted. Not scoped to any station, same as radio.list_stations();
+// what comes back is instead filtered by this controller's own token, via
+// its dirs claim rather than its station slugs (see the audio server's
+// auth package) -- an unrestricted token sees everything, a scoped one
+// only what its dirs authorize. A file entry's path is already in the
+// form radio.queue() expects as a local-file location, so a listing
+// result can be queued directly.
+func (e *Engine) luaListDirectory(L *lua.LState) int {
+	path := L.OptString(1, "")
+	ctx, cancel := context.WithTimeout(e.ctx, 10*time.Second)
+	defer cancel()
+
+	resp, err := e.client.ListDirectory(ctx, &audioserverv1.ListDirectoryRequest{Path: path})
+	if err != nil {
+		L.RaiseError("radio.list_directory failed: %v", err)
+		return 0
+	}
+
+	tbl := L.NewTable()
+	for _, entry := range resp.GetEntries() {
+		row := L.NewTable()
+		row.RawSetString("name", lua.LString(entry.GetName()))
+		row.RawSetString("is_dir", lua.LBool(entry.GetIsDir()))
+		row.RawSetString("path", lua.LString(entry.GetPath()))
+		row.RawSetString("size_bytes", lua.LNumber(entry.GetSizeBytes()))
 		tbl.Append(row)
 	}
 	L.Push(tbl)

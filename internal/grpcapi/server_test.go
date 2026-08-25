@@ -27,9 +27,17 @@ const testSecret = "test-secret"
 // the API HTTP/2-only would fail here rather than in the field.
 func newTestServer(t *testing.T) (*httptest.Server, *registry.Registry) {
 	t.Helper()
+	return newTestServerWithAudioRoot(t, "")
+}
+
+// newTestServerWithAudioRoot is newTestServer with an explicit audio_root,
+// for tests exercising ListDirectory or QueueTrack's directory-scope
+// check against real files -- t.TempDir() is the normal caller.
+func newTestServerWithAudioRoot(t *testing.T, audioRoot string) (*httptest.Server, *registry.Registry) {
+	t.Helper()
 
 	reg := registry.New()
-	api := NewServer(slog.New(slog.DiscardHandler), reg, nil, nil, "http://localhost:8080")
+	api := NewServer(slog.New(slog.DiscardHandler), reg, nil, nil, "http://localhost:8080", audioRoot)
 	path, handler := audioserverv1connect.NewAudioServerServiceHandler(
 		api,
 		connect.WithInterceptors(auth.NewInterceptor([]byte(testSecret))),
@@ -45,7 +53,12 @@ func newTestServer(t *testing.T) (*httptest.Server, *registry.Registry) {
 
 func token(t *testing.T, readOnly bool, slugs ...string) string {
 	t.Helper()
-	tok, err := auth.Sign([]byte(testSecret), slugs, "test", time.Hour, readOnly)
+	return tokenWithDirs(t, readOnly, nil, slugs...)
+}
+
+func tokenWithDirs(t *testing.T, readOnly bool, dirs []string, slugs ...string) string {
+	t.Helper()
+	tok, err := auth.Sign([]byte(testSecret), slugs, dirs, "test", time.Hour, readOnly)
 	if err != nil {
 		t.Fatalf("sign token: %v", err)
 	}

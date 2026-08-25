@@ -89,6 +89,12 @@
 ---@class RadioServerInfo
 ---@field version string # "dev" for a locally built binary with no version baked in via -ldflags
 
+---@class RadioDirectoryEntry
+---@field name string
+---@field is_dir boolean
+---@field path string # "/"-separated, relative to audio_root -- usable directly as a radio.queue() location
+---@field size_bytes integer # 0 for directories
+
 ---@class radiolib
 ---@field args string[] # CLI args after --config/--script, e.g. {"myfm", "My FM"}
 radio = {}
@@ -206,6 +212,16 @@ function radio.list_stations() end
 --- same as radio.list_stations().
 ---@return RadioServerInfo
 function radio.server_info() end
+
+--- Lists one directory under audio_root -- defaults to the root if path
+--- is omitted. Not scoped to any station, same as radio.list_stations(),
+--- but what comes back is filtered by this token's own dirs claim rather
+--- than its slugs: an unrestricted token sees everything, a scoped one
+--- only what its dirs authorize. A returned entry's path is already in
+--- the form radio.queue() expects for a local-file location.
+---@param path? string
+---@return RadioDirectoryEntry[]
+function radio.list_directory(path) end
 
 --- Calls fn repeatedly, once every `seconds`.
 ---@param seconds number

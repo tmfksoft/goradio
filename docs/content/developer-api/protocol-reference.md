@@ -20,10 +20,11 @@ service AudioServerService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc SubscribeEvents(SubscribeEventsRequest) returns (stream StationEvent);
   rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse);
+  rpc ListDirectory(ListDirectoryRequest) returns (ListDirectoryResponse);
 }
 ```
 
-Fifteen RPCs: fourteen unary commands, one server-streaming feed of
+Sixteen RPCs: fifteen unary commands, one server-streaming feed of
 events. There is no bidirectional streaming — commands are always plain
 request/response.
 
@@ -59,6 +60,7 @@ claims include:
   "iat": 1700000000,
   "exp": 1700086400,
   "slugs": ["myfm", "otherfm"],
+  "dirs": ["GTASA/KROSE"],
   "read_only": false
 }
 ```
@@ -78,19 +80,44 @@ pattern like `"test-*"` authorizes any slug with that prefix. Note that `*`
 does not cross a `/`, so a slug containing a slash needs its own explicit
 pattern.
 
+### Directory scope
+
+`dirs` is a second, independent scope: which directories under `audio_root`
+a `QueueTrack` local-file `location` (or a [`ListDirectory`](#listdirectory)
+browse) may reference. **An entry grants recursive containment** — `"GTASA/KROSE"`
+also authorizes `"GTASA/KROSE/song.ogg"` and anything deeper — unlike
+`slugs`, which only ever matches a whole segment. Entries may also be
+`path/filepath.Match` globs (e.g. `"GTASA/*"`).
+
+**Omitting `dirs` entirely (or an empty array) means unrestricted** — the
+only backward-compatible default, since it lets every token minted before
+this field existed keep authorizing any local file, exactly as before.
+Restricting `dirs` only matters once you deliberately start minting
+narrower tokens — a natural fit for a shared `audio_root` where one
+controller per directory (see
+[goradio-gta](https://goradioserver.github.io/goradio-gta/), forty
+controllers sharing one root) shouldn't be able to queue another
+controller's files even though nothing in its own script ever tries to.
+
+`QueueTrack` rejects an unauthorized local-file `location` with
+`PermissionDenied`, checked synchronously before the item is even queued —
+not left to fail silently during the async prefetch that resolves it. An
+HTTP(S) source is never subject to `dirs` at all, since it doesn't touch
+`audio_root`.
+
 `read_only` (optional, default `false` — omit the field entirely for a
 normal read-write token) additionally gates every **write** RPC —
 `RegisterStation`, `UnregisterStation`, `QueueTrack`, `RemoveFromQueue`,
 `ClearQueue`, `Skip`, `SkipTo`, `Pause`, `Resume`, `Seek`, `SeekBy` —
 behind `read_only` being false; a read-only token gets `PermissionDenied`
-on any of those, while `GetStatus`, `SubscribeEvents`, and the
-[now-playing HTTP endpoint](now-playing-http-api.md) remain available
+on any of those, while `GetStatus`, `SubscribeEvents`, `ListDirectory`, and
+the [now-playing HTTP endpoint](now-playing-http-api.md) remain available
 regardless. Use this to hand out tokens for pure observers — a web embed,
 a Discord bot, a dashboard — that should never be able to touch playback.
 
 Mint tokens with [`radio tokengen`](../cli/tokengen.md) (`-readonly` for a
-read-only one), or sign your own HS256 JWT with this claim shape from any
-language.
+read-only one, `-dirs` for directory scope), or sign your own HS256 JWT
+with this claim shape from any language.
 
 The server itself listens in plaintext — put a TLS-terminating reverse
 proxy in front if you need encryption in transit. See
@@ -250,8 +277,11 @@ message QueueTrackResponse {
   appears, for a controller/dashboard to render without needing its own
   metadata store.
 - `TRACK_SOURCE_TYPE_LOCAL_FILE`'s `location` is resolved relative to the
-  audio server's `audio.audio_root` config; it's rejected if it resolves
-  outside that root (no `../` traversal).
+  audio server's `audio.audio_root` config; it's rejected with
+  `InvalidArgument` if it resolves outside that root (no `../` traversal),
+  and with `PermissionDenied` if it falls outside the caller's token's
+  [directory scope](#directory-scope) — both checked synchronously, before
+  the item is queued, not left to fail silently during async prefetch.
 - `TRACK_SOURCE_TYPE_HTTP_URL`'s `location` must be `http://` or `https://`.
   It's auto-detected as either a finite file or a continuous **live
   stream** from the response headers (no `Content-Length`, and/or
@@ -576,3 +606,43 @@ make for a fact about the server itself.
 (`scripts/package-release.sh`/`.github/workflows/release.yml`). A locally
 built binary (`go build`/`make build` with no `-ldflags` override)
 reports `"dev"`.
+
+## ListDirectory
+
+```proto
+message DirectoryEntry {
+  string name = 1;
+  bool is_dir = 2;
+  string path = 3;
+  int64 size_bytes = 4;
+}
+
+message ListDirectoryRequest {
+  string path = 1;
+}
+
+message ListDirectoryResponse {
+  repeated DirectoryEntry entries = 1;
+}
+```
+
+Lists one directory under `audio_root`. `path` is relative to `audio_root`
+and defaults to the root when omitted; `entries[].path` is already in the
+form a `QueueTrack` local-file `location` expects, so a file entry from a
+listing can be queued as-is.
+
+Not scoped to any station — like `ListStations`/`GetServerInfo`, it just
+needs a valid token. What comes back is instead filtered by the token's
+[directory scope](#directory-scope) (`dirs`, not `slugs`): an unrestricted
+token sees the directory's full contents; a scoped one sees only entries
+that are themselves authorized, or — for a subdirectory only — merely on
+the way to one, so a client can still navigate down into an allowed
+subdirectory without every parent folder along the way looking
+unauthorized. Requesting a path that isn't reachable either way is
+rejected with `PermissionDenied` rather than silently returning an empty
+list, matching how a directly-named unauthorized slug is rejected
+elsewhere rather than treated as empty.
+
+A `path` that escapes `audio_root` (e.g. `"../"`) is rejected with
+`InvalidArgument`, the same defense `QueueTrack`'s local-file resolution
+already applies.

@@ -76,6 +76,9 @@ const (
 	// AudioServerServiceGetServerInfoProcedure is the fully-qualified name of the AudioServerService's
 	// GetServerInfo RPC.
 	AudioServerServiceGetServerInfoProcedure = "/audioserver.v1.AudioServerService/GetServerInfo"
+	// AudioServerServiceListDirectoryProcedure is the fully-qualified name of the AudioServerService's
+	// ListDirectory RPC.
+	AudioServerServiceListDirectoryProcedure = "/audioserver.v1.AudioServerService/ListDirectory"
 )
 
 // AudioServerServiceClient is a client for the audioserver.v1.AudioServerService service.
@@ -95,6 +98,7 @@ type AudioServerServiceClient interface {
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	SubscribeEvents(context.Context, *connect.Request[v1.SubscribeEventsRequest]) (*connect.ServerStreamForClient[v1.StationEvent], error)
 	GetServerInfo(context.Context, *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error)
+	ListDirectory(context.Context, *connect.Request[v1.ListDirectoryRequest]) (*connect.Response[v1.ListDirectoryResponse], error)
 }
 
 // NewAudioServerServiceClient constructs a client for the audioserver.v1.AudioServerService
@@ -198,6 +202,12 @@ func NewAudioServerServiceClient(httpClient connect.HTTPClient, baseURL string, 
 			connect.WithSchema(audioServerServiceMethods.ByName("GetServerInfo")),
 			connect.WithClientOptions(opts...),
 		),
+		listDirectory: connect.NewClient[v1.ListDirectoryRequest, v1.ListDirectoryResponse](
+			httpClient,
+			baseURL+AudioServerServiceListDirectoryProcedure,
+			connect.WithSchema(audioServerServiceMethods.ByName("ListDirectory")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -218,6 +228,7 @@ type audioServerServiceClient struct {
 	getStatus         *connect.Client[v1.GetStatusRequest, v1.GetStatusResponse]
 	subscribeEvents   *connect.Client[v1.SubscribeEventsRequest, v1.StationEvent]
 	getServerInfo     *connect.Client[v1.GetServerInfoRequest, v1.GetServerInfoResponse]
+	listDirectory     *connect.Client[v1.ListDirectoryRequest, v1.ListDirectoryResponse]
 }
 
 // RegisterStation calls audioserver.v1.AudioServerService.RegisterStation.
@@ -295,6 +306,11 @@ func (c *audioServerServiceClient) GetServerInfo(ctx context.Context, req *conne
 	return c.getServerInfo.CallUnary(ctx, req)
 }
 
+// ListDirectory calls audioserver.v1.AudioServerService.ListDirectory.
+func (c *audioServerServiceClient) ListDirectory(ctx context.Context, req *connect.Request[v1.ListDirectoryRequest]) (*connect.Response[v1.ListDirectoryResponse], error) {
+	return c.listDirectory.CallUnary(ctx, req)
+}
+
 // AudioServerServiceHandler is an implementation of the audioserver.v1.AudioServerService service.
 type AudioServerServiceHandler interface {
 	RegisterStation(context.Context, *connect.Request[v1.RegisterStationRequest]) (*connect.Response[v1.RegisterStationResponse], error)
@@ -312,6 +328,7 @@ type AudioServerServiceHandler interface {
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
 	SubscribeEvents(context.Context, *connect.Request[v1.SubscribeEventsRequest], *connect.ServerStream[v1.StationEvent]) error
 	GetServerInfo(context.Context, *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error)
+	ListDirectory(context.Context, *connect.Request[v1.ListDirectoryRequest]) (*connect.Response[v1.ListDirectoryResponse], error)
 }
 
 // NewAudioServerServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -411,6 +428,12 @@ func NewAudioServerServiceHandler(svc AudioServerServiceHandler, opts ...connect
 		connect.WithSchema(audioServerServiceMethods.ByName("GetServerInfo")),
 		connect.WithHandlerOptions(opts...),
 	)
+	audioServerServiceListDirectoryHandler := connect.NewUnaryHandler(
+		AudioServerServiceListDirectoryProcedure,
+		svc.ListDirectory,
+		connect.WithSchema(audioServerServiceMethods.ByName("ListDirectory")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/audioserver.v1.AudioServerService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AudioServerServiceRegisterStationProcedure:
@@ -443,6 +466,8 @@ func NewAudioServerServiceHandler(svc AudioServerServiceHandler, opts ...connect
 			audioServerServiceSubscribeEventsHandler.ServeHTTP(w, r)
 		case AudioServerServiceGetServerInfoProcedure:
 			audioServerServiceGetServerInfoHandler.ServeHTTP(w, r)
+		case AudioServerServiceListDirectoryProcedure:
+			audioServerServiceListDirectoryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -510,4 +535,8 @@ func (UnimplementedAudioServerServiceHandler) SubscribeEvents(context.Context, *
 
 func (UnimplementedAudioServerServiceHandler) GetServerInfo(context.Context, *connect.Request[v1.GetServerInfoRequest]) (*connect.Response[v1.GetServerInfoResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("audioserver.v1.AudioServerService.GetServerInfo is not implemented"))
+}
+
+func (UnimplementedAudioServerServiceHandler) ListDirectory(context.Context, *connect.Request[v1.ListDirectoryRequest]) (*connect.Response[v1.ListDirectoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("audioserver.v1.AudioServerService.ListDirectory is not implemented"))
 }

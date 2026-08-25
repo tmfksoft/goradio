@@ -104,8 +104,9 @@ func RequireSlug(ctx context.Context, slug string) error {
 // they are. Every write RPC (RegisterStation, UnregisterStation,
 // QueueTrack, RemoveFromQueue, ClearQueue, Skip, SkipTo, Pause, Resume,
 // Seek, SeekBy) calls this in addition to RequireSlug; the read-only
-// RPCs (GetStatus, ListStations, SubscribeEvents, GetServerInfo) don't,
-// since a read-only token is exactly meant to allow those.
+// RPCs (GetStatus, ListStations, SubscribeEvents, GetServerInfo,
+// ListDirectory) don't, since a read-only token is exactly meant to
+// allow those.
 func RequireWrite(ctx context.Context) error {
 	claims, ok := FromContext(ctx)
 	if !ok {

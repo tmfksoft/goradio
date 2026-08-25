@@ -4,7 +4,7 @@ Mints a JWT authorizing one or more station slugs, for use as a station
 controller's `auth.jwt`.
 
 ```sh
-radio tokengen [-secret SECRET] [-subject SUBJECT] [-ttl 24h] [-readonly] <slug...>
+radio tokengen [-secret SECRET] [-subject SUBJECT] [-ttl 24h] [-readonly] [-dirs DIRS] <slug...>
 ```
 
 | Flag | Default | Description |
@@ -13,6 +13,7 @@ radio tokengen [-secret SECRET] [-subject SUBJECT] [-ttl 24h] [-readonly] <slug.
 | `-subject` | `tokengen` | The JWT `sub` claim (freeform, useful for identifying which controller/deployment a token belongs to) |
 | `-ttl` | `24h` | Token lifetime, as a Go duration string (`1h`, `720h`, ...) |
 | `-readonly` | `false` | Mint a read-only token — see below |
+| `-dirs` | *(unrestricted)* | Comma-separated directories (relative to `audio_root`) this token may queue/browse — see below |
 
 The token is printed to stdout. Everything else is positional: one or more
 station slugs the token should authorize.
@@ -22,6 +23,7 @@ radio tokengen -secret s3cret -subject myfm-prod -ttl 720h myfm
 radio tokengen -secret s3cret myfm otherfm thirdfm   # one token, three stations
 radio tokengen -secret s3cret -readonly myfm         # observer-only, can't queue/skip/etc.
 radio tokengen -secret s3cret "*"                    # every station — e.g. for a management dashboard
+radio tokengen -secret s3cret -dirs GTASA/KROSE myfm # can only queue/browse under GTASA/KROSE
 ```
 
 A slug argument may be a glob pattern (`*`, `test-*`, ...) instead of an
@@ -33,9 +35,30 @@ for matching details.
 A `slugs` claim listing every slug you passed, checked by the audio server
 on every gRPC call against the slug the call actually targets — a token for
 `myfm` can't be used to call `QueueTrack` on `otherfm`, even if both stations
-exist on the same server. See [Protocol Reference — Auth](../developer-api/protocol-reference.md#authentication)
+exist on the same server. If you passed `-dirs`, a `dirs` claim too — see
+below. See [Protocol Reference — Auth](../developer-api/protocol-reference.md#authentication)
 for the exact claim shape if you're minting tokens from another language
 instead.
+
+## `-dirs`
+
+Restricts which directories under `audio_root` this token's `QueueTrack`
+local-file locations (and `ListDirectory` browsing) may reference — a
+second, independent scope from the station slugs above. An entry grants
+**recursive containment**: `-dirs GTASA/KROSE` also authorizes
+`GTASA/KROSE/song.ogg` and anything deeper, not just that exact path.
+Entries may be glob patterns (`GTASA/*`), same syntax as slugs.
+
+Omit `-dirs` entirely for an unrestricted token (the default) — a token
+minted without it can queue any local file under `audio_root`, same as
+before this flag existed. Only reach for `-dirs` once you deliberately
+want to narrow that — e.g. one controller per directory on a server with
+several sharing one `audio_root`, so each controller's token can't queue
+another's files even though its own script never tries to.
+
+```sh
+radio tokengen -secret s3cret -dirs GTASA/KROSE,GTASA/Adverts myfm
+```
 
 ## `-readonly`
 

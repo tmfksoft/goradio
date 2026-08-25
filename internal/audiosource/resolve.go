@@ -77,26 +77,50 @@ func (r *Resolver) Resolve(ctx context.Context, src *audioserverv1.TrackSource) 
 	}
 }
 
+// SafeRelPath cleans location, resolves it against root, and rejects
+// anything that escapes root (whether via "../" segments or an absolute
+// path, both of which filepath.Join+Clean would otherwise happily fold
+// into a path still confined to root, but which filepath.Rel then flags
+// via the leading ".." check below). Returns the "/"-separated path
+// relative to root -- the same form TrackSource.location and
+// DirectoryEntry.path use -- and the absolute filesystem path.
+//
+// Shared by resolveLocal (which stats the result and requires a file) and
+// grpcapi's QueueTrack/ListDirectory handlers (which need the identical
+// resolution to run synchronously, before prefetch, so a directory-scope
+// authorization check can never disagree with what the file access itself
+// will later resolve to).
+func SafeRelPath(root, location string) (relPath, absPath string, err error) {
+	rootAbs, err := filepath.Abs(root)
+	if err != nil {
+		return "", "", fmt.Errorf("resolve audio root: %w", err)
+	}
+
+	cleaned := filepath.Clean(location)
+	full, err := filepath.Abs(filepath.Join(rootAbs, cleaned))
+	if err != nil {
+		return "", "", fmt.Errorf("resolve path: %w", err)
+	}
+
+	rel, err := filepath.Rel(rootAbs, full)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		return "", "", fmt.Errorf("path %q escapes the audio root", location)
+	}
+	if rel == "." {
+		rel = ""
+	}
+
+	return filepath.ToSlash(rel), full, nil
+}
+
 func resolveLocal(cfg Config, location string) (Resolved, error) {
 	if location == "" {
 		return Resolved{}, fmt.Errorf("local file location is empty")
 	}
 
-	root, err := filepath.Abs(cfg.AudioRoot)
+	_, full, err := SafeRelPath(cfg.AudioRoot, location)
 	if err != nil {
-		return Resolved{}, fmt.Errorf("resolve audio root: %w", err)
-	}
-
-	cleaned := filepath.Clean(location)
-	full, err := filepath.Abs(filepath.Join(root, cleaned))
-	if err != nil {
-		return Resolved{}, fmt.Errorf("resolve path: %w", err)
-	}
-
-	// Path traversal defense: the resolved path must stay inside root.
-	rel, err := filepath.Rel(root, full)
-	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return Resolved{}, fmt.Errorf("local file %q escapes the audio root", location)
+		return Resolved{}, err
 	}
 
 	info, err := os.Stat(full)
@@ -107,7 +131,7 @@ func resolveLocal(cfg Config, location string) (Resolved, error) {
 		return Resolved{}, fmt.Errorf("local file %q is a directory", location)
 	}
 
-	key := fmt.Sprintf("local:%s:%d:%d", cleaned, info.ModTime().UnixNano(), info.Size())
+	key := fmt.Sprintf("local:%s:%d:%d", filepath.Clean(location), info.ModTime().UnixNano(), info.Size())
 	return Resolved{Path: full, CacheKey: key}, nil
 }
 

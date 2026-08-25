@@ -13,12 +13,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"os"
+	"path"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
 
 	audioserverv1 "github.com/goradioserver/goradio/gen/go/audioserver/v1"
 	"github.com/goradioserver/goradio/gen/go/audioserver/v1/audioserverv1connect"
+	"github.com/goradioserver/goradio/internal/audiosource"
 	"github.com/goradioserver/goradio/internal/auth"
 	"github.com/goradioserver/goradio/internal/playback"
 	"github.com/goradioserver/goradio/internal/registry"
@@ -50,15 +53,17 @@ type Server struct {
 	prefetcher    Prefetcher
 	starter       StationStarter
 	publicBaseURL string
+	audioRoot     string
 }
 
-func NewServer(log *slog.Logger, reg *registry.Registry, prefetcher Prefetcher, starter StationStarter, publicBaseURL string) *Server {
+func NewServer(log *slog.Logger, reg *registry.Registry, prefetcher Prefetcher, starter StationStarter, publicBaseURL string, audioRoot string) *Server {
 	return &Server{
 		log:           log,
 		registry:      reg,
 		prefetcher:    prefetcher,
 		starter:       starter,
 		publicBaseURL: publicBaseURL,
+		audioRoot:     audioRoot,
 	}
 }
 
@@ -153,6 +158,28 @@ func (s *Server) QueueTrack(ctx context.Context, req *connect.Request[audioserve
 	}
 	if req.Msg.GetSource() == nil {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("source is required"))
+	}
+
+	// Directory scope is an authorization concern like RequireSlug/
+	// RequireWrite above, not a mechanics concern -- checked synchronously
+	// here, before the item is even built, rather than left to the async
+	// prefetch path resolveLocal runs on. Only local files are subject to
+	// it; an HTTP(S) source never touches audio_root at all. SafeRelPath
+	// is the exact same resolution resolveLocal itself uses, so this check
+	// can never authorize a path differently than the file access that
+	// eventually follows it will.
+	if src := req.Msg.GetSource(); src.GetType() == audioserverv1.TrackSourceType_TRACK_SOURCE_TYPE_LOCAL_FILE {
+		relPath, _, err := audiosource.SafeRelPath(s.audioRoot, src.GetLocation())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, err)
+		}
+		claims, ok := auth.FromContext(ctx)
+		if !ok {
+			return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("no claims in context"))
+		}
+		if !claims.HasDir(relPath) {
+			return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("token not authorized for directory of %q", src.GetLocation()))
+		}
 	}
 
 	st, ok := s.registry.Get(req.Msg.GetSlug())
@@ -429,6 +456,75 @@ func (s *Server) SubscribeEvents(ctx context.Context, req *connect.Request[audio
 // itself, same reasoning as ListStations not needing it either.
 func (s *Server) GetServerInfo(ctx context.Context, req *connect.Request[audioserverv1.GetServerInfoRequest]) (*connect.Response[audioserverv1.GetServerInfoResponse], error) {
 	return connect.NewResponse(&audioserverv1.GetServerInfoResponse{Version: version.Version}), nil
+}
+
+// ListDirectory lists one directory under audio_root. Not scoped to any
+// station, same reasoning as ListStations/GetServerInfo -- but unlike
+// those, what comes back is still filtered, by the caller's Dirs claim
+// rather than Slugs: an unrestricted token (empty Dirs) sees everything,
+// a scoped one sees only entries CanBrowse authorizes (an allowed
+// directory itself, a directory that's merely on the way to one, or -- for
+// files -- one actually inside an allowed directory), self-filtering
+// exactly like ListStations does for stations. Requesting a path that
+// isn't even reachable that way (neither authorized nor an ancestor of
+// anything that is) is rejected outright rather than silently returning
+// an empty list, matching RequireSlug's explicit-rejection behavior for a
+// directly-named unauthorized slug.
+func (s *Server) ListDirectory(ctx context.Context, req *connect.Request[audioserverv1.ListDirectoryRequest]) (*connect.Response[audioserverv1.ListDirectoryResponse], error) {
+	claims, ok := auth.FromContext(ctx)
+	if !ok {
+		return nil, connect.NewError(connect.CodeUnauthenticated, errors.New("no claims in context"))
+	}
+
+	relPath, fullPath, err := audiosource.SafeRelPath(s.audioRoot, req.Msg.GetPath())
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	}
+
+	info, err := os.Stat(fullPath)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf("stat %q: %w", req.Msg.GetPath(), err))
+	}
+	if !info.IsDir() {
+		return nil, connect.NewError(connect.CodeInvalidArgument, fmt.Errorf("%q is not a directory", req.Msg.GetPath()))
+	}
+	if !claims.CanBrowse(relPath) {
+		return nil, connect.NewError(connect.CodePermissionDenied, fmt.Errorf("token not authorized for directory %q", req.Msg.GetPath()))
+	}
+
+	dirEntries, err := os.ReadDir(fullPath)
+	if err != nil {
+		return nil, connect.NewError(connect.CodeInternal, fmt.Errorf("read %q: %w", req.Msg.GetPath(), err))
+	}
+
+	resp := &audioserverv1.ListDirectoryResponse{}
+	for _, e := range dirEntries {
+		entryRel := path.Join(relPath, e.Name())
+		if e.IsDir() {
+			if !claims.CanBrowse(entryRel) {
+				continue
+			}
+		} else if !claims.HasDir(entryRel) {
+			continue
+		}
+
+		var size int64
+		if !e.IsDir() {
+			fi, err := e.Info()
+			if err != nil {
+				continue
+			}
+			size = fi.Size()
+		}
+		resp.Entries = append(resp.Entries, &audioserverv1.DirectoryEntry{
+			Name:      e.Name(),
+			IsDir:     e.IsDir(),
+			Path:      entryRel,
+			SizeBytes: size,
+		})
+	}
+
+	return connect.NewResponse(resp), nil
 }
 
 func queuedItemToStatus(item *playback.QueuedItem) *audioserverv1.QueuedItemStatus {

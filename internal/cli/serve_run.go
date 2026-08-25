@@ -82,7 +82,7 @@ func runServe(log *slog.Logger, cfg *config.AudioServerConfig) error {
 		},
 	}
 
-	api := grpcapi.NewServer(log, reg, pool, starter, cfg.HTTP.PublicBaseURL)
+	api := grpcapi.NewServer(log, reg, pool, starter, cfg.HTTP.PublicBaseURL, cfg.Audio.AudioRoot)
 	apiPath, apiHandler := audioserverv1connect.NewAudioServerServiceHandler(
 		api,
 		connect.WithInterceptors(auth.NewInterceptor([]byte(cfg.Auth.JWTSecret))),

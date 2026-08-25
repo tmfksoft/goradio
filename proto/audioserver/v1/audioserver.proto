@@ -7,6 +7,7 @@ import "audioserver/v1/queue.proto";
 import "audioserver/v1/status.proto";
 import "audioserver/v1/events.proto";
 import "audioserver/v1/server.proto";
+import "audioserver/v1/browse.proto";
 
 option go_package = "github.com/goradioserver/goradio/gen/go/audioserver/v1;audioserverv1";
 
@@ -26,4 +27,5 @@ service AudioServerService {
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
   rpc SubscribeEvents(SubscribeEventsRequest) returns (stream StationEvent);
   rpc GetServerInfo(GetServerInfoRequest) returns (GetServerInfoResponse);
+  rpc ListDirectory(ListDirectoryRequest) returns (ListDirectoryResponse);
 }

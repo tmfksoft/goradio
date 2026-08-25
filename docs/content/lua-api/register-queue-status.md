@@ -368,3 +368,33 @@ been called first either.
 local info = radio.server_info()
 print(info.version)  --> "v0.9.0", or "dev" for a locally built binary
 ```
+
+## `radio.list_directory([path])`
+
+Lists one directory under `audio_root` — `path` defaults to `""` (the
+root) if omitted. Not scoped to any station, same as
+`radio.list_stations()`/`radio.server_info()`.
+
+```lua
+for _, entry in ipairs(radio.list_directory("GTASA/KROSE")) do
+  if not entry.is_dir then
+    radio.queue(entry.path)
+  end
+end
+```
+
+Each entry is `{name, is_dir, path, size_bytes}` — `path` is already in
+the form [`radio.queue()`](#radioqueuesource-mode) expects for a local
+file, so a listing result can be queued directly without building the
+path yourself. `size_bytes` is `0` for a directory.
+
+What comes back is filtered by this token's **directory scope** — its
+`dirs` claim, independent of the `slugs` scope `radio.list_stations()`
+filters by. An unrestricted token (the default — see
+[`radio tokengen`'s `-dirs`](../cli/tokengen.md#-dirs)) sees a directory's
+full contents; a token scoped to specific directories sees only entries
+that are themselves authorized, or — for a subdirectory — merely on the
+way to one, so you can still navigate down into an allowed subdirectory.
+Requesting a path this token can't reach at all (not authorized, and not
+on the way to anything that is) raises a Lua error, the same way any other
+`PermissionDenied` response from this table does.

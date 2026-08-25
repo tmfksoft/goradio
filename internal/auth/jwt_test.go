@@ -9,7 +9,7 @@ import (
 func TestSignVerifyRoundTrip(t *testing.T) {
 	secret := []byte("test-secret")
 
-	token, err := Sign(secret, []string{"station-a", "station-b"}, "tester", time.Hour, false)
+	token, err := Sign(secret, []string{"station-a", "station-b"}, nil, "tester", time.Hour, false)
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -52,7 +52,7 @@ func TestHasSlugWildcard(t *testing.T) {
 }
 
 func TestVerifyRejectsWrongSecret(t *testing.T) {
-	token, err := Sign([]byte("secret-a"), []string{"station-a"}, "tester", time.Hour, false)
+	token, err := Sign([]byte("secret-a"), []string{"station-a"}, nil, "tester", time.Hour, false)
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
@@ -65,13 +65,81 @@ func TestVerifyRejectsWrongSecret(t *testing.T) {
 func TestVerifyRejectsExpiredToken(t *testing.T) {
 	secret := []byte("test-secret")
 
-	token, err := Sign(secret, []string{"station-a"}, "tester", -time.Hour, false)
+	token, err := Sign(secret, []string{"station-a"}, nil, "tester", -time.Hour, false)
 	if err != nil {
 		t.Fatalf("Sign: %v", err)
 	}
 
 	if _, err := Verify(secret, token); err == nil {
 		t.Error("expected Verify to fail for an expired token")
+	}
+}
+
+func TestHasDirUnrestrictedByDefault(t *testing.T) {
+	c := &Claims{} // no Dirs at all -- the pre-this-feature default
+	if !c.HasDir("GTASA/KROSE") {
+		t.Error("expected empty Dirs to authorize any directory")
+	}
+	if !c.HasDir("") {
+		t.Error("expected empty Dirs to authorize the root")
+	}
+}
+
+func TestHasDirRecursiveContainment(t *testing.T) {
+	c := &Claims{Dirs: []string{"GTASA/KROSE"}}
+
+	if !c.HasDir("GTASA/KROSE") {
+		t.Error("expected exact match to be authorized")
+	}
+	if !c.HasDir("GTASA/KROSE/song.ogg") {
+		t.Error("expected a file inside the allowed directory to be authorized")
+	}
+	if !c.HasDir("GTASA/KROSE/Adverts/ad.ogg") {
+		t.Error("expected a nested subdirectory's contents to be authorized")
+	}
+	if c.HasDir("GTASA/RadioX") {
+		t.Error("did not expect a sibling directory to be authorized")
+	}
+	if c.HasDir("GTASA/KROSE-other") {
+		t.Error("did not expect a same-prefix-but-different directory to be authorized (no separator boundary)")
+	}
+	if c.HasDir("GTASA") {
+		t.Error("did not expect the parent of an allowed directory to itself be authorized")
+	}
+}
+
+func TestHasDirGlob(t *testing.T) {
+	c := &Claims{Dirs: []string{"GTASA/*"}}
+	if !c.HasDir("GTASA/KROSE") {
+		t.Error("expected \"GTASA/*\" to authorize GTASA/KROSE")
+	}
+	if c.HasDir("GTAVC/Emotion") {
+		t.Error("did not expect \"GTASA/*\" to authorize a different top-level game dir")
+	}
+}
+
+// The root/ancestor edge case flagged in the design as the one most
+// likely to be gotten wrong: CanBrowse("") must be true whenever anything
+// at all is allowed, even though HasDir("") on its own is false for a
+// restricted token -- otherwise a scoped token could never list the root
+// to discover the one subdirectory it does have.
+func TestCanBrowseAncestorPath(t *testing.T) {
+	c := &Claims{Dirs: []string{"GTASA/KROSE"}}
+
+	if !c.CanBrowse("") {
+		t.Error("expected the root to be browsable when something is allowed under it")
+	}
+	if !c.CanBrowse("GTASA") {
+		t.Error("expected GTASA to be browsable as an ancestor of GTASA/KROSE")
+	}
+	if !c.CanBrowse("GTASA/KROSE") {
+		t.Error("expected the allowed directory itself to be browsable")
+	}
+	if c.CanBrowse("GTAVC") {
+		t.Error("did not expect an unrelated top-level directory to be browsable")
+	}
+	if c.CanBrowse("GTASA/RadioX") {
+		t.Error("did not expect a sibling of the allowed directory to be browsable")
 	}
 }
 

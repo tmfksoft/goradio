@@ -3,18 +3,20 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/goradioserver/goradio/internal/auth"
 )
 
-// TokenGen implements `radio tokengen [-secret ...] [-subject ...] [-ttl ...] [-readonly] <slug...>`.
+// TokenGen implements `radio tokengen [-secret ...] [-subject ...] [-ttl ...] [-readonly] [-dirs ...] <slug...>`.
 func TokenGen(args []string) error {
 	fs := flag.NewFlagSet("tokengen", flag.ContinueOnError)
 	secret := fs.String("secret", "", "HS256 signing secret (required; must match the audio server's auth.jwt_secret)")
 	subject := fs.String("subject", "tokengen", "JWT subject claim")
 	ttl := fs.Duration("ttl", 24*time.Hour, "token time-to-live")
 	readOnly := fs.Bool("readonly", false, "mint a read-only token: GetStatus/SubscribeEvents only, every write RPC is rejected")
+	dirs := fs.String("dirs", "", "comma-separated directories (relative to audio_root) this token may queue/browse, recursively; empty means unrestricted, same as omitting it entirely")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -27,7 +29,16 @@ func TokenGen(args []string) error {
 		return fmt.Errorf("-secret is required")
 	}
 
-	token, err := auth.Sign([]byte(*secret), slugs, *subject, *ttl, *readOnly)
+	var dirList []string
+	if *dirs != "" {
+		for _, d := range strings.Split(*dirs, ",") {
+			if d = strings.TrimSpace(d); d != "" {
+				dirList = append(dirList, d)
+			}
+		}
+	}
+
+	token, err := auth.Sign([]byte(*secret), slugs, dirList, *subject, *ttl, *readOnly)
 	if err != nil {
 		return fmt.Errorf("sign token: %w", err)
 	}
