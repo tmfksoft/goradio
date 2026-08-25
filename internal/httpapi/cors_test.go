@@ -76,6 +76,9 @@ func TestCORS_PreflightNowPlaying(t *testing.T) {
 	if got := resp.Header.Get("Access-Control-Allow-Headers"); got != "Authorization" {
 		t.Fatalf("Access-Control-Allow-Headers = %q, want %q", got, "Authorization")
 	}
+	if got := resp.Header.Get("Access-Control-Allow-Private-Network"); got != "true" {
+		t.Fatalf("Access-Control-Allow-Private-Network = %q, want %q", got, "true")
+	}
 }
 
 func TestCORS_HeaderOnRealNowPlaying(t *testing.T) {

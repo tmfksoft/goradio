@@ -18,6 +18,15 @@ import "net/http"
 // otherwise fail before ever reaching that logic. Authorization is the only
 // header this API accepts, and it's the only one that turns a cross-origin
 // GET into a preflighted "non-simple" request, so it's the only one allowed.
+//
+// Access-Control-Allow-Private-Network answers a second, separate browser
+// check (Chromium's Private Network Access): a page served from a public
+// origin needs this on top of the ordinary CORS headers above before it's
+// allowed to fetch a server on a loopback/private address at all -- e.g. a
+// publicly hosted widget builder being pointed at a station running on
+// localhost to try it out before going live. Standard CORS headers alone
+// don't cover this; Chromium blocks the request before it ever reaches
+// them if this one is missing.
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
@@ -25,6 +34,7 @@ func corsMiddleware(next http.Handler) http.Handler {
 		if r.Method == http.MethodOptions {
 			w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Authorization")
+			w.Header().Set("Access-Control-Allow-Private-Network", "true")
 			w.Header().Set("Access-Control-Max-Age", "600")
 			w.WriteHeader(http.StatusNoContent)
 			return
