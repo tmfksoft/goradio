@@ -15,13 +15,13 @@ import (
 // optional bearer JWT (jwtSecret, same as the gRPC control plane) on
 // now-playing additionally unlocks queue_id/location/mode, which aren't
 // handed out for free — see nowPlayingHandler.
-func NewMux(log *slog.Logger, reg *registry.Registry, jwtSecret []byte) *http.ServeMux {
+func NewMux(log *slog.Logger, reg *registry.Registry, jwtSecret []byte) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /stream/{slug}", streamHandler(log, reg))
 	mux.HandleFunc("GET /healthz", healthzHandler)
 	mux.HandleFunc("GET /stations", stationsHandler(reg))
 	mux.HandleFunc("GET /stations/{slug}/now-playing", nowPlayingHandler(reg, jwtSecret))
-	return mux
+	return corsMiddleware(mux)
 }
 
 func streamHandler(log *slog.Logger, reg *registry.Registry) http.HandlerFunc {
